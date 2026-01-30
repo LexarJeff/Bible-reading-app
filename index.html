@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1612">
+  <title>Bible Reading 2026</title>
+  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Bible Reading 2026&quot;,&quot;short_name&quot;:&quot;Bible 2026&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%231a1612&quot;,&quot;theme_color&quot;:&quot;%231a1612&quot;}">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      background: linear-gradient(145deg, #1a1612 0%, #2d2520 50%, #1a1612 100%);
+      color: #e8e0d5;
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .header { background: linear-gradient(180deg, rgba(139,90,43,0.3) 0%, transparent 100%); padding: 1rem; text-align: center; border-bottom: 1px solid rgba(212,165,116,0.2); }
+    .title { font-family: 'Cinzel', serif; font-size: 1.4rem; color: #d4a574; letter-spacing: 0.1em; }
+
+    .daily-text-link { display: block; background: rgba(212,165,116,0.15); padding: 0.6rem 1rem; text-align: center; border-bottom: 1px solid rgba(212,165,116,0.2); text-decoration: none; color: #d4a574; font-size: 0.85rem; }
+    .daily-text-link:active { background: rgba(212,165,116,0.25); }
+
+    .progress-section { padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); }
+    .progress-bar { background: rgba(0,0,0,0.4); border-radius: 8px; height: 16px; overflow: hidden; position: relative; border: 1px solid rgba(212,165,116,0.2); }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #2d5a27, #50C878); transition: width 0.5s; }
+    .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.65rem; color: #fff; font-weight: 600; }
+
+    .stats-row { display: flex; justify-content: space-around; margin-top: 0.6rem; text-align: center; }
+    .stat-value { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 600; color: #50C878; }
+    .stat-value.behind { color: #e74c3c; }
+    .stat-label { font-size: 0.6rem; color: #a89880; text-transform: uppercase; }
+
+    .catch-up-banner { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); margin: 0.5rem 1rem; padding: 0.6rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .catch-up-banner.hidden { display: none; }
+    .catch-up-text { font-size: 0.8rem; color: #e8e0d5; }
+    .catch-up-btn { background: #e74c3c; border: none; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
+
+    .section-title { font-family: 'Cinzel', serif; font-size: 0.8rem; color: #d4a574; padding: 0.75rem 1rem 0.4rem; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .bible-grid { display: flex; flex-wrap: wrap; gap: 5px; padding: 0.4rem 1rem 0.75rem; }
+    .book-box { width: 38px; height: 38px; border-radius: 5px; border: 2px solid rgba(80,200,120,0.3); background: transparent; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.5rem; font-weight: 600; color: #a89880; text-align: center; line-height: 1.1; padding: 2px; transition: all 0.2s; }
+    .book-box:active { transform: scale(0.95); }
+    .book-box.complete { background: #50C878; border-color: #50C878; color: #1a1612; }
+    .book-box.in-progress { border-color: #d4a574; color: #d4a574; }
+    .book-box.expanded { border-color: #DAA520; box-shadow: 0 0 8px rgba(218,165,32,0.4); }
+
+    .expanded-book { background: rgba(45,37,32,0.8); margin: 0.4rem 1rem 0.75rem; border-radius: 10px; border: 1px solid rgba(212,165,116,0.3); overflow: hidden; display: none; }
+    .expanded-book.show { display: block; }
+    .expanded-header { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; background: rgba(212,165,116,0.1); cursor: pointer; }
+    .expanded-title { font-family: 'Cinzel', serif; font-size: 0.95rem; color: #d4a574; }
+    .expanded-close { color: #a89880; font-size: 1.1rem; }
+    .expanded-readings { display: flex; flex-wrap: wrap; gap: 5px; padding: 0.6rem; }
+    .reading-box { width: 48px; height: 48px; border-radius: 5px; border: 2px solid rgba(80,200,120,0.4); background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 0.55rem; color: #a89880; padding: 3px; transition: all 0.2s; }
+    .reading-box:active { transform: scale(0.95); }
+    .reading-box.complete { background: #50C878; border-color: #50C878; color: #1a1612; }
+    .reading-box .date { font-weight: 600; font-size: 0.6rem; }
+    .reading-box .chapters { font-size: 0.45rem; opacity: 0.8; margin-top: 1px; }
+
+    .readings-section { padding: 0 1rem 5rem; }
+    .reading-item { display: flex; align-items: center; padding: 0.65rem; margin: 0.35rem 0; background: rgba(45,37,32,0.6); border-radius: 8px; border-left: 3px solid #d4a574; cursor: pointer; transition: all 0.2s; }
+    .reading-item:active { transform: scale(0.98); }
+    .reading-item.current { background: rgba(212,165,116,0.15); border-left-color: #DAA520; box-shadow: 0 0 10px rgba(212,165,116,0.2); }
+
+    .checkbox { width: 20px; height: 20px; border: 2px solid rgba(80,200,120,0.5); border-radius: 50%; margin-right: 0.6rem; flex-shrink: 0; }
+    .reading-content { flex: 1; min-width: 0; }
+    .reading-header { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+    .reading-date { font-size: 0.65rem; color: #a89880; background: rgba(0,0,0,0.3); padding: 0.1rem 0.3rem; border-radius: 3px; }
+    .indicator { font-size: 0.65rem; }
+    .indicator.diamond { color: #e74c3c; }
+    .indicator.dot { color: #3498db; }
+    .current-badge { font-size: 0.5rem; background: linear-gradient(135deg, #d4a574, #DAA520); color: #1a1612; padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
+    .reading-title { font-size: 0.9rem; font-weight: 600; color: #e8e0d5; margin-top: 0.1rem; }
+
+    .read-now-btn { background: linear-gradient(135deg, #2d5a27, #50C878); border: none; color: #fff; padding: 0.35rem 0.6rem; border-radius: 5px; font-size: 0.65rem; font-weight: 600; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+    .read-now-btn:active { transform: scale(0.95); }
+
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26,22,18,0.95); border-top: 1px solid rgba(212,165,116,0.2); padding: 0.5rem; display: flex; justify-content: space-around; backdrop-filter: blur(10px); }
+    .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; background: none; border: none; color: #a89880; font-family: 'Crimson Text', serif; font-size: 0.55rem; cursor: pointer; padding: 0.25rem; }
+    .bottom-btn svg { width: 18px; height: 18px; }
+    .bottom-btn:active { color: #d4a574; }
+
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #2d2520; border-radius: 14px; padding: 1.25rem; max-width: 380px; width: 100%; border: 1px solid rgba(212,165,116,0.3); max-height: 80vh; overflow-y: auto; }
+    .modal h3 { font-family: 'Cinzel', serif; color: #d4a574; margin: 0 0 0.75rem; font-size: 1.1rem; }
+    .modal p { color: #a89880; margin-bottom: 0.75rem; font-size: 0.85rem; }
+    .modal-btn { width: 100%; padding: 0.85rem; margin: 0.4rem 0; border: 1px solid rgba(212,165,116,0.3); background: rgba(212,165,116,0.1); color: #e8e0d5; border-radius: 8px; font-family: 'Crimson Text', serif; font-size: 0.95rem; cursor: pointer; }
+    .modal-btn:active { background: rgba(212,165,116,0.2); }
+    .modal-close { background: transparent; border: none; color: #a89880; padding: 0.4rem 0.8rem; cursor: pointer; font-family: 'Crimson Text', serif; margin-top: 0.4rem; font-size: 0.9rem; width: 100%; }
+
+    .catch-up-list { max-height: 40vh; overflow-y: auto; }
+    .catch-up-reading { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin: 0.25rem 0; background: rgba(231,76,60,0.1); border-radius: 6px; border-left: 3px solid #e74c3c; }
+    .catch-up-reading-text { font-size: 0.85rem; }
+    .catch-up-check { width: 22px; height: 22px; border: 2px solid #e74c3c; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .catch-up-check.done { background: #50C878; border-color: #50C878; }
+
+    .more-text { text-align: center; color: #a89880; font-size: 0.8rem; padding: 0.75rem; }
+
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1 class="title">Bible Reading 2026</h1>
+  </header>
+
+  <a href="https://www.jw.org/finder?srcid=jwlshare&wtlocale=E&prefer=lang&docid=1102026006&pub=es26" class="daily-text-link" target="_blank">
+    📖 Open Today's Daily Text
+  </a>
+
+  <section class="progress-section">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+      <span class="progress-text" id="progressText">0%</span>
+    </div>
+    <div class="stats-row">
+      <div><div class="stat-value" id="statDone">0</div><div class="stat-label">Done</div></div>
+      <div><div class="stat-value" id="statToGo">365</div><div class="stat-label">To Go</div></div>
+      <div><div class="stat-value" id="statBehind">0</div><div class="stat-label">Behind</div></div>
+    </div>
+  </section>
+
+  <div class="catch-up-banner hidden" id="catchUpBanner">
+    <span class="catch-up-text" id="catchUpText">You're 0 readings behind</span>
+    <button class="catch-up-btn" onclick="showCatchUp()">Catch Up</button>
+  </div>
+
+  <div class="section-title">Books of the Bible</div>
+  <div class="bible-grid" id="bibleGrid"></div>
+
+  <div class="expanded-book" id="expandedBook">
+    <div class="expanded-header" onclick="closeExpandedBook()">
+      <span class="expanded-title" id="expandedTitle"></span>
+      <span class="expanded-close">✕</span>
+    </div>
+    <div class="expanded-readings" id="expandedReadings"></div>
+  </div>
+
+  <div class="section-title" id="upNextTitle">Up Next</div>
+  <div class="readings-section" id="readingsSection"></div>
+
+  <nav class="bottom-bar">
+    <button class="bottom-btn" onclick="scrollToCurrent()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Current
+    </button>
+    <button class="bottom-btn" onclick="window.open('https://www.jw.org/finder?srcid=jwlshare&wtlocale=E&prefer=lang&docid=1102026006&pub=es26', '_blank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Daily Text
+    </button>
+    <button class="bottom-btn" onclick="showBackup()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Backup
+    </button>
+  </nav>
+
+  <!-- Backup Modal -->
+  <div class="modal-overlay" id="backupModal">
+    <div class="modal">
+      <h3>Backup & Restore</h3>
+      <p>Export your progress to keep it safe.</p>
+      <button class="modal-btn" onclick="exportData()">📤 Export Progress</button>
+      <label class="modal-btn" style="display:block;text-align:center;">
+        📥 Import Backup
+        <input type="file" accept=".json" onchange="importData(event)">
+      </label>
+      <button class="modal-close" onclick="hideBackup()">Close</button>
+    </div>
+  </div>
+
+  <!-- Catch-up Modal -->
+  <div class="modal-overlay" id="catchUpModal">
+    <div class="modal">
+      <h3>Catch-Up Plan</h3>
+      <p id="catchUpPlanText"></p>
+      <div class="catch-up-list" id="catchUpList"></div>
+      <button class="modal-close" onclick="hideCatchUp()">Close</button>
+    </div>
+  </div>
+
+  <script>
+    // Data
+    const STORAGE_KEY = 'bible-reading-tracker-2026';
+    const START_DATE = new Date(2026, 0, 1);
+
+    const BOOK_ABBREV = {
+      "Genesis": "Ge", "Exodus": "Ex", "Leviticus": "Le", "Numbers": "Nu",
+      "Deuteronomy": "De", "Joshua": "Jos", "Judges": "Jg", "Ruth": "Ru",
+      "1 Samuel": "1Sa", "2 Samuel": "2Sa", "1 Kings": "1Ki", "2 Kings": "2Ki",
+      "1 Chronicles": "1Ch", "2 Chronicles": "2Ch", "Ezra": "Ezr", "Nehemiah": "Ne",
+      "Esther": "Es", "Job": "Job", "Psalms": "Ps", "Proverbs": "Pr",
+      "Ecclesiastes": "Ec", "Song of Solomon": "Ca", "Isaiah": "Isa", "Jeremiah": "Jer",
+      "Lamentations": "La", "Ezekiel": "Eze", "Daniel": "Da", "Hosea": "Ho",
+      "Joel": "Joe", "Amos": "Am", "Obadiah/Jonah": "Ob/Jon", "Micah": "Mic",
+      "Nahum/Habakkuk": "Na/Hab", "Zephaniah/Haggai": "Zep/Hag", "Zechariah": "Zec",
+      "Malachi": "Mal", "Matthew": "Mt", "Mark": "Mr", "Luke": "Lu", "John": "Joh",
+      "Acts": "Ac", "Romans": "Ro", "1 Corinthians": "1Co", "2 Corinthians": "2Co",
+      "Galatians": "Ga", "Ephesians": "Eph", "Philippians": "Php", "Colossians": "Col",
+      "1 Thessalonians": "1Th", "2 Thessalonians": "2Th", "1 Timothy": "1Ti",
+      "2 Timothy": "2Ti", "Titus/Philemon": "Tit/Phm", "Hebrews": "Heb", "James": "Jas",
+      "1 Peter": "1Pe", "2 Peter": "2Pe", "1 John": "1Jo",
+      "2 John/3 John/Jude": "2Jo/3Jo/Jude", "Revelation": "Re",
+    };
+
+    const BOOK_NUM = {
+      "Genesis": 1, "Exodus": 2, "Leviticus": 3, "Numbers": 4, "Deuteronomy": 5,
+      "Joshua": 6, "Judges": 7, "Ruth": 8, "1 Samuel": 9, "2 Samuel": 10,
+      "1 Kings": 11, "2 Kings": 12, "1 Chronicles": 13, "2 Chronicles": 14,
+      "Ezra": 15, "Nehemiah": 16, "Esther": 17, "Job": 18, "Psalms": 19,
+      "Proverbs": 20, "Ecclesiastes": 21, "Song of Solomon": 22, "Isaiah": 23,
+      "Jeremiah": 24, "Lamentations": 25, "Ezekiel": 26, "Daniel": 27, "Hosea": 28,
+      "Joel": 29, "Amos": 30, "Obadiah": 31, "Jonah": 32, "Micah": 33, "Nahum": 34,
+      "Habakkuk": 35, "Zephaniah": 36, "Haggai": 37, "Zechariah": 38, "Malachi": 39,
+      "Matthew": 40, "Mark": 41, "Luke": 42, "John": 43, "Acts": 44, "Romans": 45,
+      "1 Corinthians": 46, "2 Corinthians": 47, "Galatians": 48, "Ephesians": 49,
+      "Philippians": 50, "Colossians": 51, "1 Thessalonians": 52, "2 Thessalonians": 53,
+      "1 Timothy": 54, "2 Timothy": 55, "Titus": 56, "Philemon": 57, "Hebrews": 58,
+      "James": 59, "1 Peter": 60, "2 Peter": 61, "1 John": 62, "2 John": 63,
+      "3 John": 64, "Jude": 65, "Revelation": 66,
+      "Obadiah/Jonah": 31, "Nahum/Habakkuk": 34, "Zephaniah/Haggai": 36,
+      "Titus/Philemon": 56, "2 John/3 John/Jude": 63,
+    };
+
+    const READINGS = [
+      { day: 1, book: "Genesis", chapters: "1-3", diamond: false, dot: false },
+      { day: 2, book: "Genesis", chapters: "4-7", diamond: false, dot: false },
+      { day: 3, book: "Genesis", chapters: "8-11", diamond: false, dot: false },
+      { day: 4, book: "Genesis", chapters: "12-15", diamond: true, dot: false },
+      { day: 5, book: "Genesis", chapters: "16-18", diamond: true, dot: false },
+      { day: 6, book: "Genesis", chapters: "19-22", diamond: true, dot: false },
+      { day: 7, book: "Genesis", chapters: "23-24", diamond: true, dot: false },
+      { day: 8, book: "Genesis", chapters: "25-27", diamond: true, dot: false },
+      { day: 9, book: "Genesis", chapters: "28-30", diamond: true, dot: false },
+      { day: 10, book: "Genesis", chapters: "31-32", diamond: true, dot: false },
+      { day: 11, book: "Genesis", chapters: "33-34", diamond: true, dot: false },
+      { day: 12, book: "Genesis", chapters: "35-37", diamond: true, dot: false },
+      { day: 13, book: "Genesis", chapters: "38-40", diamond: true, dot: false },
+      { day: 14, book: "Genesis", chapters: "41-42", diamond: true, dot: false },
+      { day: 15, book: "Genesis", chapters: "43-45", diamond: true, dot: false },
+      { day: 16, book: "Genesis", chapters: "46-48", diamond: true, dot: false },
+      { day: 17, book: "Genesis", chapters: "49-50", diamond: true, dot: false },
+      { day: 18, book: "Exodus", chapters: "1-4", diamond: true, dot: false },
+      { day: 19, book: "Exodus", chapters: "5-7", diamond: true, dot: false },
+      { day: 20, book: "Exodus", chapters: "8-10", diamond: true, dot: false },
+      { day: 21, book: "Exodus", chapters: "11-13", diamond: true, dot: false },
+      { day: 22, book: "Exodus", chapters: "14-15", diamond: true, dot: false },
+      { day: 23, book: "Exodus", chapters: "16-18", diamond: true, dot: false },
+      { day: 24, book: "Exodus", chapters: "19-21", diamond: true, dot: false },
+      { day: 25, book: "Exodus", chapters: "22-25", diamond: false, dot: false },
+      { day: 26, book: "Exodus", chapters: "26-28", diamond: false, dot: false },
+      { day: 27, book: "Exodus", chapters: "29-30", diamond: false, dot: false },
+      { day: 28, book: "Exodus", chapters: "31-33", diamond: true, dot: false },
+      { day: 29, book: "Exodus", chapters: "34-35", diamond: true, dot: false },
+      { day: 30, book: "Exodus", chapters: "36-38", diamond: false, dot: false },
+      { day: 31, book: "Exodus", chapters: "39-40", diamond: false, dot: false },
+      { day: 32, book: "Leviticus", chapters: "1-4", diamond: false, dot: false },
+      { day: 33, book: "Leviticus", chapters: "5-7", diamond: false, dot: false },
+      { day: 34, book: "Leviticus", chapters: "8-10", diamond: false, dot: false },
+      { day: 35, book: "Leviticus", chapters: "11-13", diamond: false, dot: false },
+      { day: 36, book: "Leviticus", chapters: "14-15", diamond: false, dot: false },
+      { day: 37, book: "Leviticus", chapters: "16-18", diamond: false, dot: false },
+      { day: 38, book: "Leviticus", chapters: "19-21", diamond: false, dot: false },
+      { day: 39, book: "Leviticus", chapters: "22-23", diamond: false, dot: false },
+      { day: 40, book: "Leviticus", chapters: "24-25", diamond: false, dot: false },
+      { day: 41, book: "Leviticus", chapters: "26-27", diamond: false, dot: false },
+      { day: 42, book: "Numbers", chapters: "1-3", diamond: false, dot: false },
+      { day: 43, book: "Numbers", chapters: "4-6", diamond: false, dot: false },
+      { day: 44, book: "Numbers", chapters: "7-9", diamond: false, dot: false },
+      { day: 45, book: "Numbers", chapters: "10-12", diamond: true, dot: false },
+      { day: 46, book: "Numbers", chapters: "13-15", diamond: true, dot: false },
+      { day: 47, book: "Numbers", chapters: "16-18", diamond: true, dot: false },
+      { day: 48, book: "Numbers", chapters: "19-21", diamond: true, dot: false },
+      { day: 49, book: "Numbers", chapters: "22-24", diamond: true, dot: false },
+      { day: 50, book: "Numbers", chapters: "25-27", diamond: true, dot: false },
+      { day: 51, book: "Numbers", chapters: "28-30", diamond: false, dot: false },
+      { day: 52, book: "Numbers", chapters: "31-32", diamond: true, dot: false },
+      { day: 53, book: "Numbers", chapters: "33-36", diamond: true, dot: false },
+      { day: 54, book: "Deuteronomy", chapters: "1-2", diamond: false, dot: false },
+      { day: 55, book: "Deuteronomy", chapters: "3-4", diamond: true, dot: false },
+      { day: 56, book: "Deuteronomy", chapters: "5-7", diamond: false, dot: false },
+      { day: 57, book: "Deuteronomy", chapters: "8-10", diamond: false, dot: false },
+      { day: 58, book: "Deuteronomy", chapters: "11-13", diamond: false, dot: false },
+      { day: 59, book: "Deuteronomy", chapters: "14-16", diamond: false, dot: false },
+      { day: 60, book: "Deuteronomy", chapters: "17-19", diamond: true, dot: false },
+      { day: 61, book: "Deuteronomy", chapters: "20-22", diamond: false, dot: false },
+      { day: 62, book: "Deuteronomy", chapters: "23-26", diamond: false, dot: false },
+      { day: 63, book: "Deuteronomy", chapters: "27-28", diamond: false, dot: false },
+      { day: 64, book: "Deuteronomy", chapters: "29-31", diamond: true, dot: false },
+      { day: 65, book: "Deuteronomy", chapters: "32", diamond: true, dot: false },
+      { day: 66, book: "Deuteronomy", chapters: "33-34", diamond: true, dot: false },
+      { day: 67, book: "Joshua", chapters: "1-4", diamond: true, dot: false },
+      { day: 68, book: "Joshua", chapters: "5-7", diamond: true, dot: false },
+      { day: 69, book: "Joshua", chapters: "8-9", diamond: true, dot: false },
+      { day: 70, book: "Joshua", chapters: "10-12", diamond: true, dot: false },
+      { day: 71, book: "Joshua", chapters: "13-15", diamond: true, dot: false },
+      { day: 72, book: "Joshua", chapters: "16-18", diamond: true, dot: false },
+      { day: 73, book: "Joshua", chapters: "19-21", diamond: true, dot: false },
+      { day: 74, book: "Joshua", chapters: "22-24", diamond: true, dot: false },
+      { day: 75, book: "Judges", chapters: "1-2", diamond: true, dot: false },
+      { day: 76, book: "Judges", chapters: "3-5", diamond: true, dot: false },
+      { day: 77, book: "Judges", chapters: "6-7", diamond: true, dot: false },
+      { day: 78, book: "Judges", chapters: "8-9", diamond: true, dot: false },
+      { day: 79, book: "Judges", chapters: "10-11", diamond: true, dot: false },
+      { day: 80, book: "Judges", chapters: "12-13", diamond: true, dot: false },
+      { day: 81, book: "Judges", chapters: "14-16", diamond: true, dot: false },
+      { day: 82, book: "Judges", chapters: "17-19", diamond: true, dot: false },
+      { day: 83, book: "Judges", chapters: "20-21", diamond: true, dot: false },
+      { day: 84, book: "Ruth", chapters: "1-4", diamond: true, dot: false },
+      { day: 85, book: "1 Samuel", chapters: "1-2", diamond: true, dot: false },
+      { day: 86, book: "1 Samuel", chapters: "3-6", diamond: true, dot: false },
+      { day: 87, book: "1 Samuel", chapters: "7-9", diamond: true, dot: false },
+      { day: 88, book: "1 Samuel", chapters: "10-12", diamond: true, dot: false },
+      { day: 89, book: "1 Samuel", chapters: "13-14", diamond: true, dot: false },
+      { day: 90, book: "1 Samuel", chapters: "15-16", diamond: true, dot: false },
+      { day: 91, book: "1 Samuel", chapters: "17-18", diamond: true, dot: false },
+      { day: 92, book: "1 Samuel", chapters: "19-21", diamond: true, dot: false },
+      { day: 93, book: "1 Samuel", chapters: "22-24", diamond: true, dot: false },
+      { day: 94, book: "1 Samuel", chapters: "25-27", diamond: true, dot: false },
+      { day: 95, book: "1 Samuel", chapters: "28-31", diamond: true, dot: false },
+      { day: 96, book: "2 Samuel", chapters: "1-2", diamond: true, dot: false },
+      { day: 97, book: "2 Samuel", chapters: "3-5", diamond: true, dot: false },
+      { day: 98, book: "2 Samuel", chapters: "6-8", diamond: true, dot: false },
+      { day: 99, book: "2 Samuel", chapters: "9-12", diamond: true, dot: false },
+      { day: 100, book: "2 Samuel", chapters: "13-14", diamond: true, dot: false },
+      { day: 101, book: "2 Samuel", chapters: "15-16", diamond: true, dot: false },
+      { day: 102, book: "2 Samuel", chapters: "17-18", diamond: true, dot: false },
+      { day: 103, book: "2 Samuel", chapters: "19-20", diamond: true, dot: false },
+      { day: 104, book: "2 Samuel", chapters: "21-22", diamond: true, dot: false },
+      { day: 105, book: "2 Samuel", chapters: "23-24", diamond: true, dot: false },
+      { day: 106, book: "1 Kings", chapters: "1-2", diamond: true, dot: false },
+      { day: 107, book: "1 Kings", chapters: "3-5", diamond: true, dot: false },
+      { day: 108, book: "1 Kings", chapters: "6-7", diamond: true, dot: false },
+      { day: 109, book: "1 Kings", chapters: "8", diamond: true, dot: false },
+      { day: 110, book: "1 Kings", chapters: "9-10", diamond: true, dot: false },
+      { day: 111, book: "1 Kings", chapters: "11-12", diamond: true, dot: false },
+      { day: 112, book: "1 Kings", chapters: "13-14", diamond: true, dot: false },
+      { day: 113, book: "1 Kings", chapters: "15-17", diamond: true, dot: false },
+      { day: 114, book: "1 Kings", chapters: "18-19", diamond: true, dot: false },
+      { day: 115, book: "1 Kings", chapters: "20-21", diamond: true, dot: false },
+      { day: 116, book: "1 Kings", chapters: "22", diamond: true, dot: false },
+      { day: 117, book: "2 Kings", chapters: "1-3", diamond: true, dot: false },
+      { day: 118, book: "2 Kings", chapters: "4-5", diamond: true, dot: false },
+      { day: 119, book: "2 Kings", chapters: "6-8", diamond: true, dot: false },
+      { day: 120, book: "2 Kings", chapters: "9-10", diamond: true, dot: false },
+      { day: 121, book: "2 Kings", chapters: "11-13", diamond: true, dot: false },
+      { day: 122, book: "2 Kings", chapters: "14-15", diamond: true, dot: false },
+      { day: 123, book: "2 Kings", chapters: "16-17", diamond: true, dot: false },
+      { day: 124, book: "2 Kings", chapters: "18-19", diamond: true, dot: false },
+      { day: 125, book: "2 Kings", chapters: "20-22", diamond: true, dot: false },
+      { day: 126, book: "2 Kings", chapters: "23-25", diamond: true, dot: false },
+      { day: 127, book: "1 Chronicles", chapters: "1-2", diamond: false, dot: false },
+      { day: 128, book: "1 Chronicles", chapters: "3-5", diamond: false, dot: false },
+      { day: 129, book: "1 Chronicles", chapters: "6-7", diamond: false, dot: false },
+      { day: 130, book: "1 Chronicles", chapters: "8-10", diamond: false, dot: false },
+      { day: 131, book: "1 Chronicles", chapters: "11-12", diamond: false, dot: false },
+      { day: 132, book: "1 Chronicles", chapters: "13-15", diamond: false, dot: false },
+      { day: 133, book: "1 Chronicles", chapters: "16-17", diamond: false, dot: false },
+      { day: 134, book: "1 Chronicles", chapters: "18-20", diamond: false, dot: false },
+      { day: 135, book: "1 Chronicles", chapters: "21-23", diamond: false, dot: false },
+      { day: 136, book: "1 Chronicles", chapters: "24-26", diamond: false, dot: false },
+      { day: 137, book: "1 Chronicles", chapters: "27-29", diamond: false, dot: false },
+      { day: 138, book: "2 Chronicles", chapters: "1-3", diamond: false, dot: false },
+      { day: 139, book: "2 Chronicles", chapters: "4-6", diamond: false, dot: false },
+      { day: 140, book: "2 Chronicles", chapters: "7-9", diamond: false, dot: false },
+      { day: 141, book: "2 Chronicles", chapters: "10-14", diamond: false, dot: false },
+      { day: 142, book: "2 Chronicles", chapters: "15-18", diamond: false, dot: false },
+      { day: 143, book: "2 Chronicles", chapters: "19-22", diamond: false, dot: false },
+      { day: 144, book: "2 Chronicles", chapters: "23-25", diamond: false, dot: false },
+      { day: 145, book: "2 Chronicles", chapters: "26-28", diamond: false, dot: false },
+      { day: 146, book: "2 Chronicles", chapters: "29-30", diamond: false, dot: false },
+      { day: 147, book: "2 Chronicles", chapters: "31-33", diamond: false, dot: false },
+      { day: 148, book: "2 Chronicles", chapters: "34-36", diamond: false, dot: false },
+      { day: 149, book: "Ezra", chapters: "1-3", diamond: true, dot: false },
+      { day: 150, book: "Ezra", chapters: "4-7", diamond: true, dot: false },
+      { day: 151, book: "Ezra", chapters: "8-10", diamond: true, dot: false },
+      { day: 152, book: "Nehemiah", chapters: "1-3", diamond: true, dot: false },
+      { day: 153, book: "Nehemiah", chapters: "4-6", diamond: true, dot: false },
+      { day: 154, book: "Nehemiah", chapters: "7-8", diamond: true, dot: false },
+      { day: 155, book: "Nehemiah", chapters: "9-10", diamond: true, dot: false },
+      { day: 156, book: "Nehemiah", chapters: "11-13", diamond: true, dot: false },
+      { day: 157, book: "Esther", chapters: "1-4", diamond: true, dot: false },
+      { day: 158, book: "Esther", chapters: "5-10", diamond: true, dot: false },
+      { day: 159, book: "Job", chapters: "1-5", diamond: false, dot: false },
+      { day: 160, book: "Job", chapters: "6-9", diamond: false, dot: false },
+      { day: 161, book: "Job", chapters: "10-14", diamond: false, dot: false },
+      { day: 162, book: "Job", chapters: "15-18", diamond: false, dot: false },
+      { day: 163, book: "Job", chapters: "19-20", diamond: false, dot: false },
+      { day: 164, book: "Job", chapters: "21-24", diamond: false, dot: false },
+      { day: 165, book: "Job", chapters: "25-29", diamond: false, dot: false },
+      { day: 166, book: "Job", chapters: "30-31", diamond: false, dot: false },
+      { day: 167, book: "Job", chapters: "32-34", diamond: false, dot: false },
+      { day: 168, book: "Job", chapters: "35-38", diamond: false, dot: false },
+      { day: 169, book: "Job", chapters: "39-42", diamond: false, dot: false },
+      { day: 170, book: "Psalms", chapters: "1-8", diamond: false, dot: false },
+      { day: 171, book: "Psalms", chapters: "9-16", diamond: false, dot: false },
+      { day: 172, book: "Psalms", chapters: "17-19", diamond: false, dot: false },
+      { day: 173, book: "Psalms", chapters: "20-25", diamond: false, dot: false },
+      { day: 174, book: "Psalms", chapters: "26-31", diamond: false, dot: false },
+      { day: 175, book: "Psalms", chapters: "32-35", diamond: false, dot: false },
+      { day: 176, book: "Psalms", chapters: "36-38", diamond: false, dot: false },
+      { day: 177, book: "Psalms", chapters: "39-42", diamond: false, dot: false },
+      { day: 178, book: "Psalms", chapters: "43-47", diamond: false, dot: false },
+      { day: 179, book: "Psalms", chapters: "48-52", diamond: false, dot: false },
+      { day: 180, book: "Psalms", chapters: "53-58", diamond: false, dot: false },
+      { day: 181, book: "Psalms", chapters: "59-64", diamond: false, dot: false },
+      { day: 182, book: "Psalms", chapters: "65-68", diamond: false, dot: false },
+      { day: 183, book: "Psalms", chapters: "69-72", diamond: false, dot: false },
+      { day: 184, book: "Psalms", chapters: "73-77", diamond: false, dot: false },
+      { day: 185, book: "Psalms", chapters: "78-79", diamond: false, dot: false },
+      { day: 186, book: "Psalms", chapters: "80-86", diamond: false, dot: false },
+      { day: 187, book: "Psalms", chapters: "87-90", diamond: false, dot: false },
+      { day: 188, book: "Psalms", chapters: "91-96", diamond: false, dot: false },
+      { day: 189, book: "Psalms", chapters: "97-103", diamond: false, dot: false },
+      { day: 190, book: "Psalms", chapters: "104-105", diamond: false, dot: false },
+      { day: 191, book: "Psalms", chapters: "106-108", diamond: false, dot: false },
+      { day: 192, book: "Psalms", chapters: "109-115", diamond: false, dot: false },
+      { day: 193, book: "Psalms", chapters: "116-119:63", diamond: false, dot: false },
+      { day: 194, book: "Psalms", chapters: "119:64-176", diamond: false, dot: false },
+      { day: 195, book: "Psalms", chapters: "120-129", diamond: false, dot: false },
+      { day: 196, book: "Psalms", chapters: "130-138", diamond: false, dot: false },
+      { day: 197, book: "Psalms", chapters: "139-144", diamond: false, dot: false },
+      { day: 198, book: "Psalms", chapters: "145-150", diamond: false, dot: false },
+      { day: 199, book: "Proverbs", chapters: "1-4", diamond: false, dot: false },
+      { day: 200, book: "Proverbs", chapters: "5-8", diamond: false, dot: false },
+      { day: 201, book: "Proverbs", chapters: "9-12", diamond: false, dot: false },
+      { day: 202, book: "Proverbs", chapters: "13-16", diamond: false, dot: false },
+      { day: 203, book: "Proverbs", chapters: "17-19", diamond: false, dot: false },
+      { day: 204, book: "Proverbs", chapters: "20-22", diamond: false, dot: false },
+      { day: 205, book: "Proverbs", chapters: "23-27", diamond: false, dot: false },
+      { day: 206, book: "Proverbs", chapters: "28-31", diamond: false, dot: false },
+      { day: 207, book: "Ecclesiastes", chapters: "1-4", diamond: false, dot: false },
+      { day: 208, book: "Ecclesiastes", chapters: "5-8", diamond: false, dot: false },
+      { day: 209, book: "Ecclesiastes", chapters: "9-12", diamond: false, dot: false },
+      { day: 210, book: "Song of Solomon", chapters: "1-8", diamond: false, dot: false },
+      { day: 211, book: "Isaiah", chapters: "1-4", diamond: false, dot: false },
+      { day: 212, book: "Isaiah", chapters: "5-7", diamond: false, dot: false },
+      { day: 213, book: "Isaiah", chapters: "8-10", diamond: false, dot: false },
+      { day: 214, book: "Isaiah", chapters: "11-14", diamond: false, dot: false },
+      { day: 215, book: "Isaiah", chapters: "15-19", diamond: false, dot: false },
+      { day: 216, book: "Isaiah", chapters: "20-24", diamond: false, dot: false },
+      { day: 217, book: "Isaiah", chapters: "25-28", diamond: false, dot: false },
+      { day: 218, book: "Isaiah", chapters: "29-31", diamond: false, dot: false },
+      { day: 219, book: "Isaiah", chapters: "32-35", diamond: false, dot: false },
+      { day: 220, book: "Isaiah", chapters: "36-37", diamond: false, dot: false },
+      { day: 221, book: "Isaiah", chapters: "38-40", diamond: false, dot: false },
+      { day: 222, book: "Isaiah", chapters: "41-43", diamond: false, dot: false },
+      { day: 223, book: "Isaiah", chapters: "44-47", diamond: false, dot: false },
+      { day: 224, book: "Isaiah", chapters: "48-50", diamond: false, dot: false },
+      { day: 225, book: "Isaiah", chapters: "51-55", diamond: false, dot: false },
+      { day: 226, book: "Isaiah", chapters: "56-58", diamond: false, dot: false },
+      { day: 227, book: "Isaiah", chapters: "59-62", diamond: false, dot: false },
+      { day: 228, book: "Isaiah", chapters: "63-66", diamond: false, dot: false },
+      { day: 229, book: "Jeremiah", chapters: "1-3", diamond: false, dot: false },
+      { day: 230, book: "Jeremiah", chapters: "4-5", diamond: false, dot: false },
+      { day: 231, book: "Jeremiah", chapters: "6-7", diamond: false, dot: false },
+      { day: 232, book: "Jeremiah", chapters: "8-10", diamond: false, dot: false },
+      { day: 233, book: "Jeremiah", chapters: "11-13", diamond: false, dot: false },
+      { day: 234, book: "Jeremiah", chapters: "14-16", diamond: false, dot: false },
+      { day: 235, book: "Jeremiah", chapters: "17-20", diamond: false, dot: false },
+      { day: 236, book: "Jeremiah", chapters: "21-23", diamond: false, dot: false },
+      { day: 237, book: "Jeremiah", chapters: "24-26", diamond: false, dot: false },
+      { day: 238, book: "Jeremiah", chapters: "27-29", diamond: false, dot: false },
+      { day: 239, book: "Jeremiah", chapters: "30-31", diamond: false, dot: false },
+      { day: 240, book: "Jeremiah", chapters: "32-33", diamond: false, dot: false },
+      { day: 241, book: "Jeremiah", chapters: "34-36", diamond: false, dot: false },
+      { day: 242, book: "Jeremiah", chapters: "37-39", diamond: false, dot: false },
+      { day: 243, book: "Jeremiah", chapters: "40-42", diamond: false, dot: false },
+      { day: 244, book: "Jeremiah", chapters: "43-44", diamond: false, dot: false },
+      { day: 245, book: "Jeremiah", chapters: "45-48", diamond: false, dot: false },
+      { day: 246, book: "Jeremiah", chapters: "49-50", diamond: false, dot: false },
+      { day: 247, book: "Jeremiah", chapters: "51-52", diamond: false, dot: false },
+      { day: 248, book: "Lamentations", chapters: "1-2", diamond: false, dot: false },
+      { day: 249, book: "Lamentations", chapters: "3-5", diamond: false, dot: false },
+      { day: 250, book: "Ezekiel", chapters: "1-3", diamond: false, dot: false },
+      { day: 251, book: "Ezekiel", chapters: "4-6", diamond: false, dot: false },
+      { day: 252, book: "Ezekiel", chapters: "7-9", diamond: false, dot: false },
+      { day: 253, book: "Ezekiel", chapters: "10-12", diamond: false, dot: false },
+      { day: 254, book: "Ezekiel", chapters: "13-15", diamond: false, dot: false },
+      { day: 255, book: "Ezekiel", chapters: "16", diamond: false, dot: false },
+      { day: 256, book: "Ezekiel", chapters: "17-18", diamond: false, dot: false },
+      { day: 257, book: "Ezekiel", chapters: "19-21", diamond: false, dot: false },
+      { day: 258, book: "Ezekiel", chapters: "22-23", diamond: false, dot: false },
+      { day: 259, book: "Ezekiel", chapters: "24-26", diamond: false, dot: false },
+      { day: 260, book: "Ezekiel", chapters: "27-28", diamond: false, dot: false },
+      { day: 261, book: "Ezekiel", chapters: "29-31", diamond: false, dot: false },
+      { day: 262, book: "Ezekiel", chapters: "32-33", diamond: false, dot: false },
+      { day: 263, book: "Ezekiel", chapters: "34-36", diamond: false, dot: false },
+      { day: 264, book: "Ezekiel", chapters: "37-38", diamond: false, dot: false },
+      { day: 265, book: "Ezekiel", chapters: "39-40", diamond: false, dot: false },
+      { day: 266, book: "Ezekiel", chapters: "41-43", diamond: false, dot: false },
+      { day: 267, book: "Ezekiel", chapters: "44-45", diamond: false, dot: false },
+      { day: 268, book: "Ezekiel", chapters: "46-48", diamond: false, dot: false },
+      { day: 269, book: "Daniel", chapters: "1-2", diamond: false, dot: false },
+      { day: 270, book: "Daniel", chapters: "3-4", diamond: false, dot: false },
+      { day: 271, book: "Daniel", chapters: "5-7", diamond: false, dot: false },
+      { day: 272, book: "Daniel", chapters: "8-10", diamond: false, dot: false },
+      { day: 273, book: "Daniel", chapters: "11-12", diamond: false, dot: false },
+      { day: 274, book: "Hosea", chapters: "1-7", diamond: false, dot: false },
+      { day: 275, book: "Hosea", chapters: "8-14", diamond: false, dot: false },
+      { day: 276, book: "Joel", chapters: "1-3", diamond: false, dot: false },
+      { day: 277, book: "Amos", chapters: "1-5", diamond: false, dot: false },
+      { day: 278, book: "Amos", chapters: "6-9", diamond: false, dot: false },
+      { day: 279, book: "Obadiah/Jonah", chapters: "", diamond: false, dot: false },
+      { day: 280, book: "Micah", chapters: "1-7", diamond: false, dot: false },
+      { day: 281, book: "Nahum/Habakkuk", chapters: "", diamond: false, dot: false },
+      { day: 282, book: "Zephaniah/Haggai", chapters: "", diamond: false, dot: false },
+      { day: 283, book: "Zechariah", chapters: "1-7", diamond: false, dot: false },
+      { day: 284, book: "Zechariah", chapters: "8-11", diamond: false, dot: false },
+      { day: 285, book: "Zechariah", chapters: "12-14", diamond: false, dot: false },
+      { day: 286, book: "Malachi", chapters: "1-4", diamond: false, dot: false },
+      { day: 287, book: "Matthew", chapters: "1-4", diamond: false, dot: false },
+      { day: 288, book: "Matthew", chapters: "5-7", diamond: false, dot: false },
+      { day: 289, book: "Matthew", chapters: "8-10", diamond: false, dot: false },
+      { day: 290, book: "Matthew", chapters: "11-13", diamond: false, dot: false },
+      { day: 291, book: "Matthew", chapters: "14-17", diamond: false, dot: false },
+      { day: 292, book: "Matthew", chapters: "18-20", diamond: false, dot: false },
+      { day: 293, book: "Matthew", chapters: "21-23", diamond: false, dot: false },
+      { day: 294, book: "Matthew", chapters: "24-25", diamond: false, dot: false },
+      { day: 295, book: "Matthew", chapters: "26", diamond: false, dot: false },
+      { day: 296, book: "Matthew", chapters: "27-28", diamond: false, dot: false },
+      { day: 297, book: "Mark", chapters: "1-3", diamond: false, dot: true },
+      { day: 298, book: "Mark", chapters: "4-5", diamond: false, dot: true },
+      { day: 299, book: "Mark", chapters: "6-8", diamond: false, dot: true },
+      { day: 300, book: "Mark", chapters: "9-10", diamond: false, dot: true },
+      { day: 301, book: "Mark", chapters: "11-13", diamond: false, dot: true },
+      { day: 302, book: "Mark", chapters: "14-16", diamond: false, dot: true },
+      { day: 303, book: "Luke", chapters: "1-2", diamond: false, dot: false },
+      { day: 304, book: "Luke", chapters: "3-5", diamond: false, dot: false },
+      { day: 305, book: "Luke", chapters: "6-7", diamond: false, dot: false },
+      { day: 306, book: "Luke", chapters: "8-9", diamond: false, dot: false },
+      { day: 307, book: "Luke", chapters: "10-11", diamond: false, dot: false },
+      { day: 308, book: "Luke", chapters: "12-13", diamond: false, dot: false },
+      { day: 309, book: "Luke", chapters: "14-17", diamond: false, dot: false },
+      { day: 310, book: "Luke", chapters: "18-19", diamond: false, dot: false },
+      { day: 311, book: "Luke", chapters: "20-22", diamond: false, dot: false },
+      { day: 312, book: "Luke", chapters: "23-24", diamond: false, dot: false },
+      { day: 313, book: "John", chapters: "1-3", diamond: false, dot: false },
+      { day: 314, book: "John", chapters: "4-5", diamond: false, dot: false },
+      { day: 315, book: "John", chapters: "6-7", diamond: false, dot: false },
+      { day: 316, book: "John", chapters: "8-9", diamond: false, dot: false },
+      { day: 317, book: "John", chapters: "10-12", diamond: false, dot: false },
+      { day: 318, book: "John", chapters: "13-15", diamond: false, dot: false },
+      { day: 319, book: "John", chapters: "16-18", diamond: false, dot: false },
+      { day: 320, book: "John", chapters: "19-21", diamond: false, dot: false },
+      { day: 321, book: "Acts", chapters: "1-3", diamond: false, dot: true },
+      { day: 322, book: "Acts", chapters: "4-6", diamond: false, dot: true },
+      { day: 323, book: "Acts", chapters: "7-8", diamond: false, dot: true },
+      { day: 324, book: "Acts", chapters: "9-11", diamond: false, dot: true },
+      { day: 325, book: "Acts", chapters: "12-14", diamond: false, dot: true },
+      { day: 326, book: "Acts", chapters: "15-16", diamond: false, dot: true },
+      { day: 327, book: "Acts", chapters: "17-19", diamond: false, dot: true },
+      { day: 328, book: "Acts", chapters: "20-21", diamond: false, dot: true },
+      { day: 329, book: "Acts", chapters: "22-23", diamond: false, dot: true },
+      { day: 330, book: "Acts", chapters: "24-26", diamond: false, dot: true },
+      { day: 331, book: "Acts", chapters: "27-28", diamond: false, dot: true },
+      { day: 332, book: "Romans", chapters: "1-3", diamond: false, dot: false },
+      { day: 333, book: "Romans", chapters: "4-7", diamond: false, dot: false },
+      { day: 334, book: "Romans", chapters: "8-11", diamond: false, dot: false },
+      { day: 335, book: "Romans", chapters: "12-16", diamond: false, dot: false },
+      { day: 336, book: "1 Corinthians", chapters: "1-6", diamond: false, dot: false },
+      { day: 337, book: "1 Corinthians", chapters: "7-10", diamond: false, dot: false },
+      { day: 338, book: "1 Corinthians", chapters: "11-14", diamond: false, dot: false },
+      { day: 339, book: "1 Corinthians", chapters: "15-16", diamond: false, dot: false },
+      { day: 340, book: "2 Corinthians", chapters: "1-6", diamond: false, dot: false },
+      { day: 341, book: "2 Corinthians", chapters: "7-10", diamond: false, dot: false },
+      { day: 342, book: "2 Corinthians", chapters: "11-13", diamond: false, dot: false },
+      { day: 343, book: "Galatians", chapters: "1-6", diamond: false, dot: false },
+      { day: 344, book: "Ephesians", chapters: "1-6", diamond: false, dot: false },
+      { day: 345, book: "Philippians", chapters: "1-4", diamond: false, dot: false },
+      { day: 346, book: "Colossians", chapters: "1-4", diamond: false, dot: false },
+      { day: 347, book: "1 Thessalonians", chapters: "1-5", diamond: false, dot: false },
+      { day: 348, book: "2 Thessalonians", chapters: "1-3", diamond: false, dot: false },
+      { day: 349, book: "1 Timothy", chapters: "1-6", diamond: false, dot: false },
+      { day: 350, book: "2 Timothy", chapters: "1-4", diamond: false, dot: false },
+      { day: 351, book: "Titus/Philemon", chapters: "", diamond: false, dot: false },
+      { day: 352, book: "Hebrews", chapters: "1-6", diamond: false, dot: false },
+      { day: 353, book: "Hebrews", chapters: "7-10", diamond: false, dot: false },
+      { day: 354, book: "Hebrews", chapters: "11-13", diamond: false, dot: false },
+      { day: 355, book: "James", chapters: "1-5", diamond: false, dot: false },
+      { day: 356, book: "1 Peter", chapters: "1-5", diamond: false, dot: false },
+      { day: 357, book: "2 Peter", chapters: "1-3", diamond: false, dot: false },
+      { day: 358, book: "1 John", chapters: "1-5", diamond: false, dot: false },
+      { day: 359, book: "2 John/3 John/Jude", chapters: "", diamond: false, dot: false },
+      { day: 360, book: "Revelation", chapters: "1-4", diamond: false, dot: false },
+      { day: 361, book: "Revelation", chapters: "5-9", diamond: false, dot: false },
+      { day: 362, book: "Revelation", chapters: "10-14", diamond: false, dot: false },
+      { day: 363, book: "Revelation", chapters: "15-18", diamond: false, dot: false },
+      { day: 364, book: "Revelation", chapters: "19-22", diamond: false, dot: false },
+    ];
+
+    const BOOKS_IN_ORDER = [...new Set(READINGS.map(r => r.book))];
+
+    // State
+    let completed = {};
+    let expandedBook = null;
+
+    // Load saved data
+    function loadData() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) completed = JSON.parse(saved);
+      } catch(e) {}
+    }
+
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(completed));
+    }
+
+    // Helpers
+    function getDateFromDay(day) {
+      const date = new Date(START_DATE);
+      date.setDate(date.getDate() + day - 1);
+      return date;
+    }
+
+    function formatDate(date) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return months[date.getMonth()] + ' ' + date.getDate();
+    }
+
+    function getJWLibraryUrl(reading) {
+      const bookNum = BOOK_NUM[reading.book];
+      if (!bookNum) return 'https://www.jw.org/en/library/bible/study-bible/books/';
+      const chapterMatch = reading.chapters.match(/^(\d+)/);
+      const chapter = chapterMatch ? chapterMatch[1] : '1';
+      const bibleCode = String(bookNum).padStart(2, '0') + String(chapter).padStart(3, '0') + '001';
+      return 'https://www.jw.org/finder?srcid=jwlshare&wtlocale=E&prefer=lang&bible=' + bibleCode + '&pub=nwtsty';
+    }
+
+    function getBookStats(book) {
+      const readings = READINGS.filter(r => r.book === book);
+      const done = readings.filter(r => completed[r.day]).length;
+      return { total: readings.length, done, isComplete: done === readings.length, hasStarted: done > 0 };
+    }
+
+    function getStats() {
+      const completedCount = Object.keys(completed).length;
+      const now = new Date();
+      const dayOfYear = Math.floor((now - START_DATE) / (1000 * 60 * 60 * 24)) + 1;
+      const shouldBeAt = Math.min(Math.max(dayOfYear, 0), 365);
+      const behind = Math.max(0, shouldBeAt - completedCount);
+      return { completedCount, remaining: 365 - completedCount, behind, shouldBeAt, percent: Math.round((completedCount / 365) * 100) };
+    }
+
+    function toggleComplete(day) {
+      if (completed[day]) {
+        delete completed[day];
+      } else {
+        completed[day] = new Date().toISOString();
+      }
+      saveData();
+      render();
+    }
+
+    // Render functions
+    function render() {
+      const stats = getStats();
+
+      // Progress
+      document.getElementById('progressFill').style.width = stats.percent + '%';
+      document.getElementById('progressText').textContent = stats.percent + '%';
+      document.getElementById('statDone').textContent = stats.completedCount;
+      document.getElementById('statToGo').textContent = stats.remaining;
+      document.getElementById('statBehind').textContent = stats.behind;
+      document.getElementById('statBehind').className = stats.behind > 0 ? 'stat-value behind' : 'stat-value';
+
+      // Catch-up banner
+      const banner = document.getElementById('catchUpBanner');
+      if (stats.behind > 0) {
+        banner.classList.remove('hidden');
+        document.getElementById('catchUpText').textContent = "You're " + stats.behind + " readings behind";
+      } else {
+        banner.classList.add('hidden');
+      }
+
+      // Bible grid
+      const grid = document.getElementById('bibleGrid');
+      grid.innerHTML = BOOKS_IN_ORDER.map(book => {
+        const bookStats = getBookStats(book);
+        const abbrev = BOOK_ABBREV[book] || book.substring(0, 3);
+        let cls = 'book-box';
+        if (bookStats.isComplete) cls += ' complete';
+        else if (bookStats.hasStarted) cls += ' in-progress';
+        if (expandedBook === book) cls += ' expanded';
+        return '<div class="' + cls + '" onclick="toggleExpandBook(\'' + book.replace(/'/g, "\\'") + '\')">' + abbrev + '</div>';
+      }).join('');
+
+      // Expanded book
+      renderExpandedBook();
+
+      // Readings list
+      renderReadings();
+    }
+
+    function renderExpandedBook() {
+      const container = document.getElementById('expandedBook');
+      if (!expandedBook) {
+        container.classList.remove('show');
+        return;
+      }
+
+      container.classList.add('show');
+      document.getElementById('expandedTitle').textContent = expandedBook;
+
+      const readings = READINGS.filter(r => r.book === expandedBook);
+      document.getElementById('expandedReadings').innerHTML = readings.map(r => {
+        const date = getDateFromDay(r.day);
+        const isDone = completed[r.day];
+        return '<div class="reading-box ' + (isDone ? 'complete' : '') + '" onclick="toggleComplete(' + r.day + ')">' +
+          '<span class="date">' + formatDate(date) + '</span>' +
+          '<span class="chapters">' + (r.chapters || 'All') + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderReadings() {
+      const incomplete = READINGS.filter(r => !completed[r.day]);
+      const currentDay = incomplete.length > 0 ? incomplete[0].day : null;
+
+      document.getElementById('upNextTitle').textContent = incomplete.length > 0 ? 'Up Next' : 'All Complete! 🎉';
+
+      const section = document.getElementById('readingsSection');
+      section.innerHTML = incomplete.slice(0, 15).map(r => {
+        const date = getDateFromDay(r.day);
+        const isCurrent = r.day === currentDay;
+        const url = getJWLibraryUrl(r);
+
+        return '<div class="reading-item ' + (isCurrent ? 'current' : '') + '" id="reading-' + r.day + '">' +
+          '<div class="checkbox" onclick="toggleComplete(' + r.day + ')"></div>' +
+          '<div class="reading-content" onclick="toggleComplete(' + r.day + ')">' +
+            '<div class="reading-header">' +
+              '<span class="reading-date">' + formatDate(date) + '</span>' +
+              (r.diamond ? '<span class="indicator diamond">◆</span>' : '') +
+              (r.dot ? '<span class="indicator dot">●</span>' : '') +
+              (isCurrent ? '<span class="current-badge">Next</span>' : '') +
+            '</div>' +
+            '<div class="reading-title">' + r.book + ' ' + r.chapters + '</div>' +
+          '</div>' +
+          '<button class="read-now-btn" onclick="window.open(\'' + url + '\', \'_blank\')">Read Now</button>' +
+        '</div>';
+      }).join('');
+
+      if (incomplete.length > 15) {
+        section.innerHTML += '<p class="more-text">+' + (incomplete.length - 15) + ' more...</p>';
+      }
+    }
+
+    function toggleExpandBook(book) {
+      expandedBook = expandedBook === book ? null : book;
+      render();
+    }
+
+    function closeExpandedBook() {
+      expandedBook = null;
+      render();
+    }
+
+    function scrollToCurrent() {
+      const incomplete = READINGS.filter(r => !completed[r.day]);
+      if (incomplete.length > 0) {
+        const el = document.getElementById('reading-' + incomplete[0].day);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // Modals
+    function showBackup() { document.getElementById('backupModal').classList.add('show'); }
+    function hideBackup() { document.getElementById('backupModal').classList.remove('show'); }
+
+    function showCatchUp() {
+      const stats = getStats();
+      const missed = READINGS.slice(0, stats.shouldBeAt).filter(r => !completed[r.day]);
+      const extraPerDay = Math.ceil(missed.length / 7);
+
+      document.getElementById('catchUpPlanText').textContent =
+        'You have ' + missed.length + ' missed readings. Read ' + extraPerDay + ' extra per day to catch up in ' + Math.ceil(missed.length / extraPerDay) + ' days.';
+
+      document.getElementById('catchUpList').innerHTML = missed.map(r => {
+        const date = getDateFromDay(r.day);
+        const isDone = completed[r.day];
+        return '<div class="catch-up-reading">' +
+          '<span class="catch-up-reading-text">' + formatDate(date) + ' — ' + r.book + ' ' + r.chapters + '</span>' +
+          '<div class="catch-up-check ' + (isDone ? 'done' : '') + '" onclick="toggleComplete(' + r.day + '); showCatchUp();">' +
+            (isDone ? '<span style="color:#fff;font-size:0.8rem">✓</span>' : '') +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      document.getElementById('catchUpModal').classList.add('show');
+    }
+    function hideCatchUp() { document.getElementById('catchUpModal').classList.remove('show'); }
+
+    function exportData() {
+      const data = JSON.stringify({ completed, exportDate: new Date().toISOString() });
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'bible-reading-backup-' + new Date().toISOString().split('T')[0] + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (data.completed) {
+              completed = data.completed;
+              saveData();
+              render();
+              alert('Progress restored!');
+              hideBackup();
+            }
+          } catch(err) {
+            alert('Invalid backup file');
+          }
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    // Init
+    loadData();
+    render();
+    setTimeout(scrollToCurrent, 500);
+  </script>
+</body>
+</html>
