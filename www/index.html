@@ -279,7 +279,7 @@
 
   <script>
     // App version — bump this when publishing a new release
-    const APP_VERSION = "1.9.1";
+    const APP_VERSION = "1.9.2";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -345,11 +345,13 @@
     function applyUpdate() {
       var cached = localStorage.getItem('ota-html');
       if (cached) {
-        localStorage.removeItem('ota-html');
-        localStorage.removeItem('ota-version');
-        document.open();
-        document.write(cached);
-        document.close();
+        // Replace entire page with a full-screen iframe containing the update.
+        // srcdoc iframe shares the same origin so localStorage works.
+        var style = 'margin:0;padding:0;overflow:hidden;background:#1a1612;';
+        var iframeStyle = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
+        document.documentElement.innerHTML = '<head></head><body style="' + style + '">' +
+          '<iframe id="otaFrame" style="' + iframeStyle + '"></iframe></body>';
+        document.getElementById('otaFrame').srcdoc = cached;
       }
     }
 
