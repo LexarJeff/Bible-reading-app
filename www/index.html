@@ -8,32 +8,6 @@
   <meta name="theme-color" content="#1a1612">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>Bible Reading 2026</title>
-  <script>
-  // OTA Bootloader — MUST be first script, before style/body/main script.
-  // If a cached OTA update exists, writes it via document.write() then
-  // appends "<!--" to comment out the entire rest of the original page.
-  // Uses window.__ota_applied flag to prevent re-entry when the OTA
-  // HTML's own bootloader runs in the same JS context.
-  // BUNDLED_VERSION must match APP_VERSION in main script below.
-  (function() {
-    try {
-      if (window.__ota_applied) return;
-      var BUNDLED_VERSION = "1.8.0";
-      var c = localStorage.getItem('ota-html');
-      var v = localStorage.getItem('ota-version');
-      if (!c || !v) return;
-      var pa = v.split('.').map(Number), pb = BUNDLED_VERSION.split('.').map(Number);
-      for (var i = 0; i < 3; i++) {
-        if ((pa[i]||0) > (pb[i]||0)) {
-          window.__ota_applied = true;
-          document.write(c + '<!--');
-          return;
-        }
-        if ((pa[i]||0) < (pb[i]||0)) return;
-      }
-    } catch(e) {}
-  })();
-  </script>
   <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Bible Reading 2026&quot;,&quot;short_name&quot;:&quot;Bible 2026&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%231a1612&quot;,&quot;theme_color&quot;:&quot;%231a1612&quot;}">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -129,11 +103,6 @@
 
     .more-text { text-align: center; color: #a89880; font-size: 0.8rem; padding: 0.75rem; }
 
-    .update-banner { background: rgba(80,200,120,0.15); border: 1px solid rgba(80,200,120,0.3); margin: 0.5rem 1rem; padding: 0.8rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 50; }
-    .update-banner.hidden { display: none; }
-    .update-text { font-size: 0.85rem; color: #e8e0d5; }
-    .update-btn { background: #50C878; border: none; color: #1a1612; padding: 0.6rem 1.2rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: rgba(80,200,120,0.3); touch-action: manipulation; }
-    .update-dismiss { background: none; border: none; color: #a89880; font-size: 1.2rem; cursor: pointer; margin-left: 0.5rem; padding: 0.5rem; touch-action: manipulation; }
 
     .settings-divider { border: none; border-top: 1px solid rgba(212,165,116,0.2); margin: 0.75rem 0; }
     .settings-version { text-align: center; color: #a89880; font-size: 0.75rem; margin-top: 0.5rem; }
@@ -207,13 +176,6 @@
     <button class="catch-up-btn" onclick="showCatchUp()">Catch Up</button>
   </div>
 
-  <div class="update-banner hidden" id="updateBanner">
-    <span class="update-text" id="updateText">Update available</span>
-    <div>
-      <button class="update-btn" id="updateBtn" onclick="downloadUpdate()">Update</button>
-      <button class="update-dismiss" onclick="dismissUpdate()">✕</button>
-    </div>
-  </div>
 
   <div class="section-title">Books of the Bible</div>
   <div class="bible-grid" id="bibleGrid"></div>
@@ -259,6 +221,7 @@
       <hr class="settings-divider">
       <button class="modal-btn danger" onclick="confirmStartOver()">Start Over</button>
       <hr class="settings-divider">
+      <button class="modal-btn" onclick="checkForUpdateManual()" id="checkUpdateBtn">🔄 Check for Update</button>
       <div class="settings-version" id="settingsVersion"></div>
       <button class="modal-close" onclick="hideSettings()">Close</button>
     </div>
@@ -316,8 +279,7 @@
 
   <script>
     // App version — bump this when publishing a new release
-    // IMPORTANT: Also update BUNDLED_VERSION in the OTA bootloader script in <head>
-    const APP_VERSION = "1.8.4";
+    const APP_VERSION = "1.9.0";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -348,37 +310,48 @@
       }
     });
 
-    // OTA update check — fetches latest index.html from GitHub
-    function checkForUpdate() {
-      if (!isNative()) return;
+    // OTA update — manual check from Settings
+    window.checkForUpdateManual = function() {
+      var btn = document.getElementById('checkUpdateBtn');
+      btn.textContent = '⏳ Checking...';
+      btn.disabled = true;
       fetch('https://raw.githubusercontent.com/LexarJeff/Bible-reading-app/main/www/index.html')
         .then(function(r) { return r.text(); })
         .then(function(html) {
           var match = html.match(/const APP_VERSION\s*=\s*"([^"]+)"/);
-          if (!match) return;
+          if (!match) {
+            btn.textContent = '❌ Check failed';
+            setTimeout(function() { btn.textContent = '🔄 Check for Update'; btn.disabled = false; }, 2000);
+            return;
+          }
           var remoteVersion = match[1];
           if (compareVersions(remoteVersion, APP_VERSION) > 0) {
             localStorage.setItem('ota-html', html);
             localStorage.setItem('ota-version', remoteVersion);
-            showUpdateBanner(remoteVersion);
+            btn.textContent = '⬇️ Install v' + remoteVersion;
+            btn.disabled = false;
+            btn.onclick = function() { applyUpdate(); };
+          } else {
+            btn.textContent = '✅ Up to date';
+            setTimeout(function() { btn.textContent = '🔄 Check for Update'; btn.disabled = false; }, 2000);
           }
         })
-        .catch(function() {}); // Silently fail if offline
-    }
-
-    function showUpdateBanner(version) {
-      document.getElementById('updateText').textContent = 'Update ready (v' + version + ')';
-      document.getElementById('updateBtn').textContent = 'Restart';
-      document.getElementById('updateBanner').classList.remove('hidden');
-    }
-
-    window.downloadUpdate = function() {
-      window.location.reload();
+        .catch(function() {
+          btn.textContent = '❌ No connection';
+          setTimeout(function() { btn.textContent = '🔄 Check for Update'; btn.disabled = false; }, 2000);
+        });
     };
 
-    window.dismissUpdate = function() {
-      document.getElementById('updateBanner').classList.add('hidden');
-    };
+    function applyUpdate() {
+      var cached = localStorage.getItem('ota-html');
+      if (cached) {
+        localStorage.removeItem('ota-html');
+        localStorage.removeItem('ota-version');
+        document.open();
+        document.write(cached);
+        document.close();
+      }
+    }
 
     // Helper to open external URLs
     function openExternal(url) {
@@ -1554,7 +1527,6 @@
       render();
       setTimeout(scrollToCurrent, 500);
     }
-    checkForUpdate();
   </script>
 </body>
 </html>
