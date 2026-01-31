@@ -8,6 +8,25 @@
   <meta name="theme-color" content="#1a1612">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>Bible Reading 2026</title>
+  <script>
+  // OTA Bootloader — MUST be first script, before style/body/main script.
+  // If a cached OTA update exists, writes it and stops the parser so the
+  // bundled version never renders. Runs before Capacitor bridge injects.
+  // BUNDLED_VERSION must match APP_VERSION in main script below.
+  (function() {
+    try {
+      var BUNDLED_VERSION = "1.8.0";
+      var c = localStorage.getItem('ota-html');
+      var v = localStorage.getItem('ota-version');
+      if (!c || !v) return;
+      var pa = v.split('.').map(Number), pb = BUNDLED_VERSION.split('.').map(Number);
+      for (var i = 0; i < 3; i++) {
+        if ((pa[i]||0) > (pb[i]||0)) { document.write(c); window.stop(); return; }
+        if ((pa[i]||0) < (pb[i]||0)) return;
+      }
+    } catch(e) {}
+  })();
+  </script>
   <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Bible Reading 2026&quot;,&quot;short_name&quot;:&quot;Bible 2026&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%231a1612&quot;,&quot;theme_color&quot;:&quot;%231a1612&quot;}">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -294,9 +313,10 @@
 
   <script>
     // App version — bump this when publishing a new release
-    const APP_VERSION = "1.7.1";
+    // IMPORTANT: Also update BUNDLED_VERSION in the OTA bootloader script in <head>
+    const APP_VERSION = "1.8.0";
 
-    // Version comparison (must be defined before OTA loader)
+    // Version comparison
     function compareVersions(a, b) {
       var pa = a.split('.').map(Number);
       var pb = b.split('.').map(Number);
@@ -308,26 +328,6 @@
       }
       return 0;
     }
-
-    // OTA loader — replace page with cached update before Capacitor bridge loads
-    // document.write() at top of page load works because the bridge hasn't injected yet
-    (function() {
-      var cached = localStorage.getItem('ota-html');
-      var cachedVersion = localStorage.getItem('ota-version');
-      if (cached && cachedVersion && compareVersions(cachedVersion, APP_VERSION) > 0) {
-        document.open();
-        document.write(cached);
-        document.close();
-      }
-    })();
-    // Clean up stale OTA cache (bundled version caught up)
-    (function() {
-      var cachedVersion = localStorage.getItem('ota-version');
-      if (cachedVersion && compareVersions(APP_VERSION, cachedVersion) >= 0) {
-        localStorage.removeItem('ota-html');
-        localStorage.removeItem('ota-version');
-      }
-    })();
 
     // Capacitor helper — uses native bridge when available, falls back to web APIs
     function isNative() {
