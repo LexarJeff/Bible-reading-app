@@ -122,11 +122,11 @@
 
     .more-text { text-align: center; color: #a89880; font-size: 0.8rem; padding: 0.75rem; }
 
-    .update-banner { background: rgba(80,200,120,0.15); border: 1px solid rgba(80,200,120,0.3); margin: 0.5rem 1rem; padding: 0.6rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .update-banner { background: rgba(80,200,120,0.15); border: 1px solid rgba(80,200,120,0.3); margin: 0.5rem 1rem; padding: 0.8rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 50; }
     .update-banner.hidden { display: none; }
-    .update-text { font-size: 0.8rem; color: #e8e0d5; }
-    .update-btn { background: #50C878; border: none; color: #1a1612; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
-    .update-dismiss { background: none; border: none; color: #a89880; font-size: 1rem; cursor: pointer; margin-left: 0.5rem; padding: 0.2rem; }
+    .update-text { font-size: 0.85rem; color: #e8e0d5; }
+    .update-btn { background: #50C878; border: none; color: #1a1612; padding: 0.6rem 1.2rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: rgba(80,200,120,0.3); touch-action: manipulation; }
+    .update-dismiss { background: none; border: none; color: #a89880; font-size: 1.2rem; cursor: pointer; margin-left: 0.5rem; padding: 0.5rem; touch-action: manipulation; }
 
     .settings-divider { border: none; border-top: 1px solid rgba(212,165,116,0.2); margin: 0.75rem 0; }
     .settings-version { text-align: center; color: #a89880; font-size: 0.75rem; margin-top: 0.5rem; }
@@ -314,7 +314,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update BUNDLED_VERSION in the OTA bootloader script in <head>
-    const APP_VERSION = "1.8.1";
+    const APP_VERSION = "1.8.2";
 
     // Version comparison
     function compareVersions(a, b) {
