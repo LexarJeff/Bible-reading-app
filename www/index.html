@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "2.0.1";
+        var cur = "2.0.2";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -230,31 +230,45 @@
 
   <div class="modal-overlay" id="planPickerModal">
     <div class="modal">
-      <h3>Choose a Reading Plan</h3>
-      <p>Select how you'd like to read through the Bible.</p>
+      <h3>Choose Your Pace</h3>
+      <p>Select how quickly you'd like to read through the Bible.</p>
       <div class="plan-picker-grid">
-        <div class="plan-option" onclick="selectPlan('1year')">
+        <div class="plan-option" onclick="selectPace('1year')">
           <div class="plan-name">1 Year</div>
-          <div class="plan-desc">Read the entire Bible in one year (~3-4 chapters/day, 364 days)</div>
+          <div class="plan-desc">Read the entire Bible in one year (~3-4 chapters/day)</div>
         </div>
-        <div class="plan-option" onclick="selectPlan('2year')">
+        <div class="plan-option" onclick="selectPace('2year')">
           <div class="plan-name">2 Year</div>
-          <div class="plan-desc">A slower pace through the Bible (~1-2 chapters/day, 730 days)</div>
+          <div class="plan-desc">A slower pace through the Bible (~1-2 chapters/day)</div>
         </div>
-        <div class="plan-option" onclick="selectPlan('3year')">
+        <div class="plan-option" onclick="selectPace('3year')">
           <div class="plan-name">3 Year</div>
-          <div class="plan-desc">A relaxed pace (~1 chapter/day, 1095 days)</div>
+          <div class="plan-desc">A relaxed pace (~1 chapter/day)</div>
         </div>
-        <div class="plan-option" onclick="selectPlan('chrono')">
-          <div class="plan-name">Chronological</div>
-          <div class="plan-desc">Read the Bible in historical order (365 days)</div>
-        </div>
-        <div class="plan-option" onclick="selectPlan('freestyle')">
+        <div class="plan-option" onclick="selectPace('freestyle')">
           <div class="plan-name">Freestyle</div>
-          <div class="plan-desc">No schedule — check off chapters at your own pace, or spin the wheel for a random pick</div>
+          <div class="plan-desc">No schedule — check off chapters at your own pace</div>
         </div>
       </div>
       <button class="modal-close" id="planPickerClose" onclick="hidePlanPicker()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="orderPickerModal">
+    <div class="modal">
+      <h3>Choose Reading Order</h3>
+      <p>What order would you like to read the books in?</p>
+      <div class="plan-picker-grid">
+        <div class="plan-option" onclick="selectOrder('bible')">
+          <div class="plan-name">Bible Order</div>
+          <div class="plan-desc">Genesis to Revelation — the traditional book order</div>
+        </div>
+        <div class="plan-option" onclick="selectOrder('chrono')">
+          <div class="plan-name">Chronological</div>
+          <div class="plan-desc">Read in the order events happened historically</div>
+        </div>
+      </div>
+      <button class="modal-close" onclick="backToPacePicker()">Back</button>
     </div>
   </div>
 
@@ -286,7 +300,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "2.0.1";
+    const APP_VERSION = "2.0.2";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -371,9 +385,15 @@
     const STORAGE_KEY = 'bible-reading-tracker-2026';
     const DEFAULT_START_DATE = '2026-01-01';
 
+    function getStartDateKey() {
+      return 'bible-reading-start-date-' + currentPlan + '-' + currentOrder;
+    }
+
     function getStartDate() {
       if (!currentPlan || currentPlan === 'freestyle') return new Date(2026, 0, 1);
-      var stored = localStorage.getItem('bible-reading-start-date-' + currentPlan);
+      var stored = localStorage.getItem(getStartDateKey());
+      // Fallback to old key format (without order suffix)
+      if (!stored) stored = localStorage.getItem('bible-reading-start-date-' + currentPlan);
       if (stored) {
         var parts = stored.split('-');
         return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -383,12 +403,14 @@
 
     function setStartDate(dateStr) {
       if (!currentPlan) return;
-      localStorage.setItem('bible-reading-start-date-' + currentPlan, dateStr);
+      localStorage.setItem(getStartDateKey(), dateStr);
     }
 
     function getStartDateStr() {
       if (!currentPlan || currentPlan === 'freestyle') return DEFAULT_START_DATE;
-      return localStorage.getItem('bible-reading-start-date-' + currentPlan) || DEFAULT_START_DATE;
+      var stored = localStorage.getItem(getStartDateKey());
+      if (!stored) stored = localStorage.getItem('bible-reading-start-date-' + currentPlan);
+      return stored || DEFAULT_START_DATE;
     }
 
     const BOOK_ABBREV = {
@@ -455,9 +477,30 @@
       '1year': { label: '1 Year Plan', days: 364 },
       '2year': { label: '2 Year Plan', days: 730 },
       '3year': { label: '3 Year Plan', days: 1095 },
-      'chrono': { label: 'Chronological', days: 365 },
       'freestyle': { label: 'Freestyle', days: 0 }
     };
+
+    const ORDER_LABELS = { 'bible': 'Bible Order', 'chrono': 'Chronological' };
+
+    function remapChronoDays(targetDays) {
+      var source = READINGS_CHRONO;
+      var maxDay = source[source.length - 1].day;
+      return source.map(function(r) {
+        var newDay = Math.round((r.day / maxDay) * targetDays);
+        if (newDay < 1) newDay = 1;
+        return { day: newDay, book: r.book, chapters: r.chapters, diamond: r.diamond, dot: r.dot };
+      });
+    }
+
+    function getPlanDays(plan, order) {
+      if (plan === 'freestyle') return 0;
+      if (order === 'chrono') {
+        if (plan === '1year') return 365;
+        if (plan === '2year') return 730;
+        if (plan === '3year') return 1095;
+      }
+      return PLAN_TYPES[plan] ? PLAN_TYPES[plan].days : 364;
+    }
 
     function generatePlan(totalDays) {
       var chapters = [];
@@ -1240,6 +1283,7 @@
 
     // Active plan state
     let currentPlan = '1year';
+    let currentOrder = 'bible';
     let activeReadings = READINGS_1YEAR;
     let activeBooksInOrder = [...new Set(READINGS_1YEAR.map(r => r.book))];
 
@@ -1247,42 +1291,68 @@
     let completed = {};
     let expandedBook = null;
 
-    function getStorageKeyForPlan(plan) {
-      return 'bible-reading-progress-' + plan;
+    function getStorageKeyForPlan(plan, order) {
+      var p = plan || currentPlan;
+      var o = order !== undefined ? order : currentOrder;
+      return 'bible-reading-progress-' + p + '-' + o;
     }
 
     function isFreestyleType() {
+      return currentPlan === 'freestyle' && currentOrder === 'bible';
+    }
+
+    function isChronoFreestyle() {
+      return currentPlan === 'freestyle' && currentOrder === 'chrono';
+    }
+
+    function isUnscheduled() {
       return currentPlan === 'freestyle';
     }
 
     function initPlan() {
       // Migrate old dealers data to freestyle
       if (currentPlan === 'dealers') {
-        var oldDealersData = localStorage.getItem(getStorageKeyForPlan('dealers'));
+        var oldDealersData = localStorage.getItem('bible-reading-progress-dealers');
         if (oldDealersData) {
-          var existingFreestyle = localStorage.getItem(getStorageKeyForPlan('freestyle'));
+          var existingFreestyle = localStorage.getItem(getStorageKeyForPlan('freestyle', 'bible'));
           if (!existingFreestyle) {
-            localStorage.setItem(getStorageKeyForPlan('freestyle'), oldDealersData);
+            localStorage.setItem(getStorageKeyForPlan('freestyle', 'bible'), oldDealersData);
           }
         }
         currentPlan = 'freestyle';
-        localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: 'freestyle' }));
+        currentOrder = 'bible';
+        localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: 'freestyle', order: 'bible' }));
       }
-      if (currentPlan === 'freestyle') {
+
+      if (currentPlan === 'freestyle' && currentOrder === 'bible') {
+        // Bible-order freestyle: chapter cards, random button
         activeReadings = [];
         activeBooksInOrder = BIBLE_BOOKS.map(function(b) { return b[0]; });
-      } else if (currentPlan === '1year') {
-        activeReadings = READINGS_1YEAR;
-        activeBooksInOrder = [...new Set(READINGS_1YEAR.map(r => r.book))];
-      } else if (currentPlan === '2year') {
-        activeReadings = generatePlan(730);
-        activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
-      } else if (currentPlan === '3year') {
-        activeReadings = generatePlan(1095);
-        activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
-      } else if (currentPlan === 'chrono') {
+      } else if (currentPlan === 'freestyle' && currentOrder === 'chrono') {
+        // Chrono freestyle: chrono readings as checklist, no dates
         activeReadings = READINGS_CHRONO;
         activeBooksInOrder = [...new Set(READINGS_CHRONO.map(r => r.book))];
+      } else if (currentOrder === 'chrono') {
+        // Scheduled chrono
+        if (currentPlan === '1year') {
+          activeReadings = READINGS_CHRONO;
+        } else {
+          var targetDays = PLAN_TYPES[currentPlan].days;
+          activeReadings = remapChronoDays(targetDays);
+        }
+        activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
+      } else {
+        // Scheduled bible order
+        if (currentPlan === '1year') {
+          activeReadings = READINGS_1YEAR;
+          activeBooksInOrder = [...new Set(READINGS_1YEAR.map(r => r.book))];
+        } else if (currentPlan === '2year') {
+          activeReadings = generatePlan(730);
+          activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
+        } else if (currentPlan === '3year') {
+          activeReadings = generatePlan(1095);
+          activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
+        }
       }
     }
 
@@ -1297,17 +1367,43 @@
         var planSaved = localStorage.getItem('bible-reading-plan-selection');
         if (planSaved) {
           var planData = JSON.parse(planSaved);
+
+          // Migrate old chrono plan to 1year + chrono order
+          if (planData.plan === 'chrono') {
+            planData.plan = '1year';
+            planData.order = 'chrono';
+            // Migrate progress key
+            var oldProgress = localStorage.getItem('bible-reading-progress-chrono');
+            if (oldProgress) {
+              var newKey = 'bible-reading-progress-1year-chrono';
+              if (!localStorage.getItem(newKey)) {
+                localStorage.setItem(newKey, oldProgress);
+              }
+            }
+            // Migrate start date key
+            var oldStart = localStorage.getItem('bible-reading-start-date-chrono');
+            if (oldStart) {
+              var newStartKey = 'bible-reading-start-date-1year-chrono';
+              if (!localStorage.getItem(newStartKey)) {
+                localStorage.setItem(newStartKey, oldStart);
+              }
+            }
+            localStorage.setItem('bible-reading-plan-selection', JSON.stringify(planData));
+          }
+
           if (planData.plan && PLAN_TYPES[planData.plan]) {
             currentPlan = planData.plan;
           }
+          currentOrder = planData.order || 'bible';
         } else {
           // Check for old data migration
           var oldData = localStorage.getItem(STORAGE_KEY);
           if (oldData) {
             // Migrate old data to 1year plan
-            localStorage.setItem(getStorageKeyForPlan('1year'), oldData);
-            localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: '1year' }));
+            localStorage.setItem(getStorageKeyForPlan('1year', 'bible'), oldData);
+            localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: '1year', order: 'bible' }));
             currentPlan = '1year';
+            currentOrder = 'bible';
           } else {
             // No plan selected and no old data → first launch
             currentPlan = null;
@@ -1315,7 +1411,15 @@
           }
         }
         initPlan();
-        var saved = localStorage.getItem(getStorageKeyForPlan(currentPlan));
+        // Load progress: try new key format, fall back to old key without order suffix
+        var saved = localStorage.getItem(getStorageKeyForPlan(currentPlan, currentOrder));
+        if (!saved) {
+          saved = localStorage.getItem('bible-reading-progress-' + currentPlan);
+          if (saved) {
+            // Migrate to new key format
+            localStorage.setItem(getStorageKeyForPlan(currentPlan, currentOrder), saved);
+          }
+        }
         if (saved) completed = JSON.parse(saved);
       } catch(e) {}
     }
@@ -1385,6 +1489,7 @@
         }
         return { total: total, done: done, isComplete: done === total, hasStarted: done > 0 };
       }
+      // For chrono freestyle and scheduled plans, use activeReadings
       var readings = activeReadings.filter(function(r) { return r.book === book; });
       var done = readings.filter(function(r) { return !!completed[r.day]; }).length;
       return { total: readings.length, done: done, isComplete: done === readings.length, hasStarted: done > 0 };
@@ -1402,6 +1507,18 @@
           total: TOTAL_CHAPTERS
         };
       }
+      if (isChronoFreestyle()) {
+        var completedCount = Object.keys(completed).length;
+        var total = activeReadings.length;
+        return {
+          completedCount: completedCount,
+          remaining: total - completedCount,
+          behind: 0,
+          shouldBeAt: 0,
+          percent: Math.round((completedCount / total) * 100),
+          total: total
+        };
+      }
       const totalReadings = activeReadings.length;
       // Count unique days completed
       var completedCount = 0;
@@ -1415,8 +1532,7 @@
       const now = new Date();
       const startDate = getStartDate();
       const dayOfYear = Math.floor((now - startDate) / (1000 * 60 * 60 * 24)) + 1;
-      // For multi-year plans, shouldBeAt is based on total days
-      var planDays = PLAN_TYPES[currentPlan].days;
+      var planDays = getPlanDays(currentPlan, currentOrder);
       const shouldBeAt = Math.min(Math.max(dayOfYear, 0), planDays);
       // Count how many readings should be done by now (readings with day <= shouldBeAt)
       var shouldHaveDone = activeReadings.filter(function(r) { return r.day <= shouldBeAt; }).length;
@@ -1449,18 +1565,20 @@
     function render() {
       if (!currentPlan) return; // no plan selected yet
       const stats = getStats();
-      var isFreestyle = isFreestyleType();
+      var unscheduled = isUnscheduled();
 
       // Plan subtitle
-      document.getElementById('planSubtitle').textContent = PLAN_TYPES[currentPlan].label;
+      var subtitleParts = PLAN_TYPES[currentPlan].label;
+      if (currentOrder === 'chrono') subtitleParts += ' (Chronological)';
+      document.getElementById('planSubtitle').textContent = subtitleParts;
 
       // Progress
       document.getElementById('progressFill').style.width = stats.percent + '%';
       document.getElementById('progressText').textContent = stats.percent + '%';
 
-      // Progress marker: hide for freestyle
+      // Progress marker: hide for unscheduled (both freestyle variants)
       var marker = document.getElementById('progressMarker');
-      if (isFreestyle) {
+      if (unscheduled) {
         marker.style.display = 'none';
       } else {
         marker.style.display = '';
@@ -1471,11 +1589,11 @@
       document.getElementById('statDone').textContent = stats.completedCount;
       document.getElementById('statToGo').textContent = stats.remaining;
 
-      // Behind/Ahead stat: hide for freestyle
+      // Behind/Ahead stat: hide for unscheduled (both freestyle variants)
       var behindEl = document.getElementById('statBehind');
       var behindLabel = document.getElementById('statBehindLabel');
       var behindParent = behindEl.parentElement;
-      if (isFreestyle) {
+      if (unscheduled) {
         behindParent.style.display = 'none';
       } else {
         behindParent.style.display = '';
@@ -1504,9 +1622,9 @@
         return '<div class="' + cls + '" onclick="toggleExpandBook(\'' + book.replace(/'/g, "\\'") + '\')">' + abbrev + '</div>';
       }).join('');
 
-      // Spin button for freestyle
+      // Spin button for bible-order freestyle only
       var existingSpinBtn = document.getElementById('spinBtn');
-      if (currentPlan === 'freestyle') {
+      if (isFreestyleType()) {
         if (!existingSpinBtn) {
           var spinBtn = document.createElement('button');
           spinBtn.id = 'spinBtn';
@@ -1555,6 +1673,15 @@
           '</div>';
         }
         document.getElementById('expandedReadings').innerHTML = html;
+      } else if (isChronoFreestyle()) {
+        // Chrono freestyle: reading boxes without dates
+        const readings = activeReadings.filter(r => r.book === expandedBook);
+        document.getElementById('expandedReadings').innerHTML = readings.map(r => {
+          const isDone = completed[r.day];
+          return '<div class="reading-box ' + (isDone ? 'complete' : '') + '" onclick="toggleComplete(' + r.day + ')">' +
+            '<span class="chapters">' + (r.chapters || 'All') + '</span>' +
+          '</div>';
+        }).join('');
       } else {
         const readings = activeReadings.filter(r => r.book === expandedBook);
         document.getElementById('expandedReadings').innerHTML = readings.map(r => {
@@ -1569,11 +1696,11 @@
     }
 
     function renderReadings() {
-      var isFreestyle = isFreestyleType();
       var upNextTitle = document.getElementById('upNextTitle');
       var section = document.getElementById('readingsSection');
 
-      if (isFreestyle) {
+      // Bible-order freestyle: hide Up Next entirely
+      if (isFreestyleType()) {
         upNextTitle.style.display = 'none';
         section.innerHTML = '';
         return;
@@ -1582,14 +1709,29 @@
       upNextTitle.style.display = '';
       const incomplete = activeReadings.filter(r => !completed[r.day]);
       const currentDay = incomplete.length > 0 ? incomplete[0].day : null;
+      var chronoFS = isChronoFreestyle();
 
       upNextTitle.textContent = incomplete.length > 0 ? 'Up Next' : 'All Complete! 🎉';
 
       section.innerHTML = incomplete.slice(0, 15).map(r => {
-        const date = getDateFromDay(r.day);
         const isCurrent = r.day === currentDay;
         const readingIdx = activeReadings.indexOf(r);
 
+        if (chronoFS) {
+          // Chrono freestyle: no dates, no behind, no indicators
+          return '<div class="reading-item ' + (isCurrent ? 'current' : '') + '" id="reading-' + r.day + '">' +
+            '<div class="checkbox" onclick="toggleComplete(' + r.day + ')"></div>' +
+            '<div class="reading-content" onclick="toggleComplete(' + r.day + ')">' +
+              '<div class="reading-header">' +
+                (isCurrent ? '<span class="current-badge">Next</span>' : '') +
+              '</div>' +
+              '<div class="reading-title">' + r.book + ' ' + r.chapters + '</div>' +
+            '</div>' +
+            '<button class="read-now-btn" onclick="openReading(' + readingIdx + ')">Read Now</button>' +
+          '</div>';
+        }
+
+        const date = getDateFromDay(r.day);
         return '<div class="reading-item ' + (isCurrent ? 'current' : '') + '" id="reading-' + r.day + '">' +
           '<div class="checkbox" onclick="toggleComplete(' + r.day + ')"></div>' +
           '<div class="reading-content" onclick="toggleComplete(' + r.day + ')">' +
@@ -1621,7 +1763,7 @@
     };
 
     window.scrollToCurrent = function() {
-      if (isFreestyleType()) return;
+      if (isFreestyleType()) return; // bible-order freestyle has no Up Next
       const incomplete = activeReadings.filter(r => !completed[r.day]);
       if (incomplete.length > 0) {
         const el = document.getElementById('reading-' + incomplete[0].day);
@@ -1629,7 +1771,11 @@
       }
     };
 
-    // Plan picker
+    // Plan picker (two-step: pace then order)
+    var pendingPace = null;
+    var pendingOrder = null;
+    var pendingPlanType = null;
+
     window.showPlanPicker = function() {
       document.getElementById('settingsModal').classList.remove('show');
       document.getElementById('planPickerClose').style.display = currentPlan ? '' : 'none';
@@ -1639,54 +1785,71 @@
       document.getElementById('planPickerModal').classList.remove('show');
     };
 
-    var pendingPlanType = null;
+    window.selectPace = function(pace) {
+      pendingPace = pace;
+      document.getElementById('planPickerModal').classList.remove('show');
+      // Show order picker
+      document.getElementById('orderPickerModal').classList.add('show');
+    };
 
-    window.selectPlan = function(type) {
-      if (currentPlan && currentPlan !== type) {
+    window.backToPacePicker = function() {
+      document.getElementById('orderPickerModal').classList.remove('show');
+      document.getElementById('planPickerModal').classList.add('show');
+    };
+
+    window.selectOrder = function(order) {
+      document.getElementById('orderPickerModal').classList.remove('show');
+      var pace = pendingPace;
+      pendingPace = null;
+
+      // Confirm if switching
+      if (currentPlan && (currentPlan !== pace || currentOrder !== order)) {
         if (!confirm('Switching plans will change your active reading schedule. Your progress for each plan is saved separately. Continue?')) {
           return;
         }
       }
-      document.getElementById('planPickerModal').classList.remove('show');
 
-      if (type !== 'freestyle') {
-        // Check if this plan already has a start date set
-        var existingDate = localStorage.getItem('bible-reading-start-date-' + type);
-        if (!existingDate && !currentPlan) {
-          // New user, no plan yet — show date picker
-          pendingPlanType = type;
-          var today = new Date();
-          var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-          document.getElementById('startDateInput').value = todayStr;
-          document.getElementById('startDateModal').classList.add('show');
-          return;
-        } else if (!existingDate && currentPlan) {
-          // Switching to a plan that has no start date — show date picker
-          pendingPlanType = type;
-          var today = new Date();
-          var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-          document.getElementById('startDateInput').value = todayStr;
-          document.getElementById('startDateModal').classList.add('show');
-          return;
-        }
+      // For freestyle, skip date picker
+      if (pace === 'freestyle') {
+        finalizePlanSelection(pace, order);
+        return;
       }
 
-      finalizePlanSelection(type);
+      // Check if this plan+order already has a start date set
+      var startDateKey = 'bible-reading-start-date-' + pace + '-' + order;
+      var existingDate = localStorage.getItem(startDateKey);
+      // Fallback to old format
+      if (!existingDate) existingDate = localStorage.getItem('bible-reading-start-date-' + pace);
+
+      if (!existingDate) {
+        // Show date picker
+        pendingPlanType = pace;
+        pendingOrder = order;
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+        document.getElementById('startDateInput').value = todayStr;
+        document.getElementById('startDateModal').classList.add('show');
+        return;
+      }
+
+      finalizePlanSelection(pace, order);
     };
 
-    function finalizePlanSelection(type) {
-      currentPlan = type;
-      localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: type }));
-      // Load progress for this plan (or start fresh)
+    function finalizePlanSelection(plan, order) {
+      currentPlan = plan;
+      currentOrder = order;
+      localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: plan, order: order }));
+      // Load progress for this plan+order (or start fresh)
       completed = {};
       try {
-        var saved = localStorage.getItem(getStorageKeyForPlan(type));
+        var saved = localStorage.getItem(getStorageKeyForPlan(plan, order));
+        if (!saved) saved = localStorage.getItem('bible-reading-progress-' + plan);
         if (saved) completed = JSON.parse(saved);
       } catch(e) {}
       initPlan();
       expandedBook = null;
       render();
-      if (!isFreestyleType()) {
+      if (!isUnscheduled()) {
         setTimeout(scrollToCurrent, 300);
       }
     }
@@ -1699,19 +1862,23 @@
       }
       document.getElementById('startDateModal').classList.remove('show');
       var type = pendingPlanType;
+      var order = pendingOrder || 'bible';
       pendingPlanType = null;
-      localStorage.setItem('bible-reading-start-date-' + type, dateVal);
-      finalizePlanSelection(type);
+      pendingOrder = null;
+      localStorage.setItem('bible-reading-start-date-' + type + '-' + order, dateVal);
+      finalizePlanSelection(type, order);
     };
 
     window.cancelStartDate = function() {
       document.getElementById('startDateModal').classList.remove('show');
       pendingPlanType = null;
+      pendingOrder = null;
     };
 
     window.showChangeStartDate = function() {
       document.getElementById('settingsModal').classList.remove('show');
       pendingPlanType = currentPlan;
+      pendingOrder = currentOrder;
       document.getElementById('startDateInput').value = getStartDateStr();
       document.getElementById('startDateModal').classList.add('show');
     };
@@ -1729,11 +1896,12 @@
     window.showSettings = function() {
       document.getElementById('settingsVersion').textContent = 'Version ' + APP_VERSION;
       var planLabel = currentPlan ? PLAN_TYPES[currentPlan].label : '';
+      if (planLabel && currentOrder === 'chrono') planLabel += ', Chronological';
       document.getElementById('changePlanBtn').textContent = 'Change Reading Plan' + (planLabel ? ' (' + planLabel + ')' : '');
       // Show/hide start date controls
       var startDateBtn = document.getElementById('changeStartDateBtn');
       var startDateDisplay = document.getElementById('currentStartDateDisplay');
-      if (currentPlan && currentPlan !== 'freestyle') {
+      if (currentPlan && !isUnscheduled()) {
         startDateBtn.style.display = '';
         startDateDisplay.style.display = '';
         var sd = getStartDate();
@@ -1747,7 +1915,7 @@
     window.hideSettings = function() { document.getElementById('settingsModal').classList.remove('show'); };
 
     window.exportData = async function() {
-      const data = JSON.stringify({ plan: currentPlan, completed, exportDate: new Date().toISOString() });
+      const data = JSON.stringify({ plan: currentPlan, order: currentOrder, completed, exportDate: new Date().toISOString() });
       const filename = 'bible-reading-backup-' + new Date().toISOString().split('T')[0] + '.json';
 
       if (isNative()) {
@@ -1790,12 +1958,21 @@
             if (data.completed) {
               // Detect old format (no plan field) → assume 1year
               var importPlan = data.plan || '1year';
-              if (importPlan !== currentPlan) {
-                if (!confirm('This backup is from the "' + (PLAN_TYPES[importPlan] ? PLAN_TYPES[importPlan].label : importPlan) + '" plan. Switch to it and restore?')) {
+              var importOrder = data.order || 'bible';
+              // Migrate old chrono plan imports
+              if (importPlan === 'chrono') {
+                importPlan = '1year';
+                importOrder = 'chrono';
+              }
+              if (importPlan !== currentPlan || importOrder !== currentOrder) {
+                var label = PLAN_TYPES[importPlan] ? PLAN_TYPES[importPlan].label : importPlan;
+                if (importOrder === 'chrono') label += ' (Chronological)';
+                if (!confirm('This backup is from the "' + label + '" plan. Switch to it and restore?')) {
                   return;
                 }
                 currentPlan = importPlan;
-                localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: importPlan }));
+                currentOrder = importOrder;
+                localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: importPlan, order: importOrder }));
                 initPlan();
               }
               completed = data.completed;
@@ -1952,7 +2129,9 @@
       showPlanPicker();
     } else {
       render();
-      setTimeout(scrollToCurrent, 500);
+      if (!isFreestyleType()) {
+        setTimeout(scrollToCurrent, 500);
+      }
     }
   </script>
 </body>
