@@ -10,18 +10,25 @@
   <title>Bible Reading 2026</title>
   <script>
   // OTA Bootloader — MUST be first script, before style/body/main script.
-  // If a cached OTA update exists, writes it and stops the parser so the
-  // bundled version never renders. Runs before Capacitor bridge injects.
+  // If a cached OTA update exists, writes it via document.write() then
+  // appends "<!--" to comment out the entire rest of the original page.
+  // Uses window.__ota_applied flag to prevent re-entry when the OTA
+  // HTML's own bootloader runs in the same JS context.
   // BUNDLED_VERSION must match APP_VERSION in main script below.
   (function() {
     try {
+      if (window.__ota_applied) return;
       var BUNDLED_VERSION = "1.8.0";
       var c = localStorage.getItem('ota-html');
       var v = localStorage.getItem('ota-version');
       if (!c || !v) return;
       var pa = v.split('.').map(Number), pb = BUNDLED_VERSION.split('.').map(Number);
       for (var i = 0; i < 3; i++) {
-        if ((pa[i]||0) > (pb[i]||0)) { document.write(c); window.stop(); return; }
+        if ((pa[i]||0) > (pb[i]||0)) {
+          window.__ota_applied = true;
+          document.write(c + '<!--');
+          return;
+        }
         if ((pa[i]||0) < (pb[i]||0)) return;
       }
     } catch(e) {}
@@ -237,7 +244,6 @@
     </button>
   </nav>
 
-  <!-- Settings Modal -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal">
       <h3>Settings</h3>
@@ -258,7 +264,6 @@
     </div>
   </div>
 
-  <!-- Plan Picker Modal -->
   <div class="modal-overlay" id="planPickerModal">
     <div class="modal">
       <h3>Choose a Reading Plan</h3>
@@ -285,7 +290,6 @@
     </div>
   </div>
 
-  <!-- Random Pick Result Modal -->
   <div class="modal-overlay" id="dealerResultModal">
     <div class="modal">
       <h3>Random Pick</h3>
@@ -301,7 +305,6 @@
     </div>
   </div>
 
-  <!-- Catch-up Modal -->
   <div class="modal-overlay" id="catchUpModal">
     <div class="modal">
       <h3>Catch-Up Plan</h3>
@@ -314,7 +317,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update BUNDLED_VERSION in the OTA bootloader script in <head>
-    const APP_VERSION = "1.8.2";
+    const APP_VERSION = "1.8.3";
 
     // Version comparison
     function compareVersions(a, b) {
