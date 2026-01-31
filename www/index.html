@@ -294,7 +294,7 @@
 
   <script>
     // App version — bump this when publishing a new release
-    const APP_VERSION = "1.6.1";
+    const APP_VERSION = "1.7.0";
 
     // Version comparison (must be defined before OTA loader)
     function compareVersions(a, b) {
@@ -309,60 +309,25 @@
       return 0;
     }
 
-    // OTA loader — apply cached update by replacing styles, body, and re-executing script
-    // This preserves the Capacitor bridge that document.write() destroys
-    var __otaApplied = (function() {
+    // OTA loader — replace page with cached update before Capacitor bridge loads
+    // document.write() at top of page load works because the bridge hasn't injected yet
+    (function() {
       var cached = localStorage.getItem('ota-html');
       var cachedVersion = localStorage.getItem('ota-version');
       if (cached && cachedVersion && compareVersions(cachedVersion, APP_VERSION) > 0) {
-        document.addEventListener('DOMContentLoaded', function otaLoad() {
-          document.removeEventListener('DOMContentLoaded', otaLoad);
-          try {
-            // Replace style
-            var styleMatch = cached.match(/<style>([\s\S]*?)<\/style>/i);
-            if (styleMatch) {
-              var existingStyle = document.querySelector('style');
-              if (existingStyle) existingStyle.textContent = styleMatch[1];
-            }
-            // Replace body HTML (up to the <script> tag)
-            var bodyMatch = cached.match(/<body>([\s\S]*?)<script>/i);
-            if (bodyMatch) {
-              var scripts = document.body.querySelectorAll('script');
-              scripts.forEach(function(s) { s.remove(); });
-              document.body.innerHTML = bodyMatch[1];
-            }
-            // Extract and execute the new script
-            var scriptMatch = cached.match(/<script>([\s\S]*?)<\/script>/i);
-            if (scriptMatch) {
-              var s = document.createElement('script');
-              s.textContent = scriptMatch[1];
-              document.body.appendChild(s);
-            }
-          } catch(e) {
-            console.error('OTA apply failed:', e);
-            // Fallback: clear cache and reload
-            localStorage.removeItem('ota-html');
-            localStorage.removeItem('ota-version');
-            window.location.reload();
-          }
-        });
-        return true;
+        document.open();
+        document.write(cached);
+        document.close();
       }
-      return false;
     })();
-
     // Clean up stale OTA cache (bundled version caught up)
-    if (!__otaApplied) {
-      (function() {
-        var cachedVersion = localStorage.getItem('ota-version');
-        if (cachedVersion && compareVersions(APP_VERSION, cachedVersion) >= 0) {
-          localStorage.removeItem('ota-html');
-          localStorage.removeItem('ota-version');
-        }
-      })();
-    }
-
-    if (!__otaApplied) { // Skip bundled app code when OTA update is pending
+    (function() {
+      var cachedVersion = localStorage.getItem('ota-version');
+      if (cachedVersion && compareVersions(APP_VERSION, cachedVersion) >= 0) {
+        localStorage.removeItem('ota-html');
+        localStorage.removeItem('ota-version');
+      }
+    })();
 
     // Capacitor helper — uses native bridge when available, falls back to web APIs
     function isNative() {
@@ -405,35 +370,7 @@
     }
 
     window.downloadUpdate = function() {
-      // Apply cached OTA update by replacing DOM (preserves Capacitor bridge)
-      var cached = localStorage.getItem('ota-html');
-      if (cached) {
-        try {
-          var styleMatch = cached.match(/<style>([\s\S]*?)<\/style>/i);
-          if (styleMatch) {
-            var existingStyle = document.querySelector('style');
-            if (existingStyle) existingStyle.textContent = styleMatch[1];
-          }
-          var bodyMatch = cached.match(/<body>([\s\S]*?)<script>/i);
-          if (bodyMatch) {
-            var scripts = document.body.querySelectorAll('script');
-            scripts.forEach(function(s) { s.remove(); });
-            document.body.innerHTML = bodyMatch[1];
-          }
-          var scriptMatch = cached.match(/<script>([\s\S]*?)<\/script>/i);
-          if (scriptMatch) {
-            var s = document.createElement('script');
-            s.textContent = scriptMatch[1];
-            document.body.appendChild(s);
-          }
-        } catch(e) {
-          localStorage.removeItem('ota-html');
-          localStorage.removeItem('ota-version');
-          window.location.reload();
-        }
-      } else {
-        window.location.reload();
-      }
+      window.location.reload();
     };
 
     window.dismissUpdate = function() {
@@ -1615,8 +1552,6 @@
       setTimeout(scrollToCurrent, 500);
     }
     checkForUpdate();
-
-    } // end if (!__otaApplied)
   </script>
 </body>
 </html>
