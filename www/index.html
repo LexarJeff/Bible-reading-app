@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "1.9.7";
+        var cur = "1.9.8";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -193,12 +193,6 @@
     </div>
   </section>
 
-  <div class="catch-up-banner hidden" id="catchUpBanner">
-    <span class="catch-up-text" id="catchUpText">You're 0 readings behind</span>
-    <button class="catch-up-btn" onclick="showCatchUp()">Catch Up</button>
-  </div>
-
-
   <div class="section-title">Books of the Bible</div>
   <div class="bible-grid" id="bibleGrid"></div>
 
@@ -208,6 +202,11 @@
       <span class="expanded-close">✕</span>
     </div>
     <div class="expanded-readings" id="expandedReadings"></div>
+  </div>
+
+  <div class="catch-up-banner hidden" id="catchUpBanner">
+    <span class="catch-up-text" id="catchUpText">You're 0 readings behind</span>
+    <button class="catch-up-btn" onclick="showCatchUp()">Catch Up</button>
   </div>
 
   <div class="section-title" id="upNextTitle">Up Next</div>
@@ -294,7 +293,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "1.9.7";
+    const APP_VERSION = "1.9.8";
 
     // Version comparison
     function compareVersions(a, b) {
