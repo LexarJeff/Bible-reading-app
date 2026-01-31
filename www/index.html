@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "1.9.9";
+        var cur = "2.0.0";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -59,10 +59,6 @@
     .stat-value.behind { color: #e74c3c; }
     .stat-label { font-size: 0.6rem; color: #a89880; text-transform: uppercase; }
 
-    .catch-up-banner { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); margin: 0.5rem 1rem; padding: 0.6rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; }
-    .catch-up-banner.hidden { display: none; }
-    .catch-up-text { font-size: 0.8rem; color: #e8e0d5; }
-    .catch-up-btn { background: #e74c3c; border: none; color: #fff; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.75rem; cursor: pointer; }
 
     .section-title { font-family: 'Cinzel', serif; font-size: 0.8rem; color: #d4a574; padding: 0.75rem 1rem 0.4rem; text-transform: uppercase; letter-spacing: 0.1em; }
 
@@ -117,11 +113,6 @@
     .modal-btn:active { background: rgba(212,165,116,0.2); }
     .modal-close { background: transparent; border: none; color: #a89880; padding: 0.4rem 0.8rem; cursor: pointer; font-family: 'Crimson Text', serif; margin-top: 0.4rem; font-size: 0.9rem; width: 100%; }
 
-    .catch-up-list { max-height: 40vh; overflow-y: auto; }
-    .catch-up-reading { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; margin: 0.25rem 0; background: rgba(231,76,60,0.1); border-radius: 6px; border-left: 3px solid #e74c3c; }
-    .catch-up-reading-text { font-size: 0.85rem; }
-    .catch-up-check { width: 22px; height: 22px; border: 2px solid #e74c3c; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .catch-up-check.done { background: #50C878; border-color: #50C878; }
 
     .more-text { text-align: center; color: #a89880; font-size: 0.8rem; padding: 0.75rem; }
 
@@ -207,11 +198,6 @@
   <div class="section-title" id="upNextTitle">Up Next</div>
   <div class="readings-section" id="readingsSection"></div>
 
-  <div class="catch-up-banner hidden" id="catchUpBanner">
-    <span class="catch-up-text" id="catchUpText">You're 0 readings behind</span>
-    <button class="catch-up-btn" onclick="showCatchUp()">Catch Up</button>
-  </div>
-
   <nav class="bottom-bar">
     <button class="bottom-btn" onclick="showSettings()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -281,19 +267,10 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="catchUpModal">
-    <div class="modal">
-      <h3>Catch-Up Plan</h3>
-      <p id="catchUpPlanText"></p>
-      <div class="catch-up-list" id="catchUpList"></div>
-      <button class="modal-close" onclick="hideCatchUp()">Close</button>
-    </div>
-  </div>
-
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "1.9.9";
+    const APP_VERSION = "2.0.0";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -1106,15 +1083,6 @@
         }
       }
 
-      // Catch-up banner: hide for freestyle
-      const banner = document.getElementById('catchUpBanner');
-      if (!isFreestyle && stats.behind > 0) {
-        banner.classList.remove('hidden');
-        document.getElementById('catchUpText').textContent = "You're " + stats.behind + " readings behind";
-      } else {
-        banner.classList.add('hidden');
-      }
-
       // Bible grid
       const grid = document.getElementById('bibleGrid');
       grid.innerHTML = activeBooksInOrder.map(book => {
@@ -1302,31 +1270,6 @@
       document.getElementById('settingsModal').classList.add('show');
     };
     window.hideSettings = function() { document.getElementById('settingsModal').classList.remove('show'); };
-
-    window.showCatchUp = function() {
-      if (isFreestyleType()) return;
-      const stats = getStats();
-      const missed = activeReadings.filter(function(r) { return r.day <= stats.shouldBeAt && !completed[r.day]; });
-      var extraPerDay = Math.ceil(missed.length / 7);
-      if (extraPerDay < 1) extraPerDay = 1;
-
-      document.getElementById('catchUpPlanText').textContent =
-        'You have ' + missed.length + ' missed readings. Read ' + extraPerDay + ' extra per day to catch up in ' + Math.ceil(missed.length / extraPerDay) + ' days.';
-
-      document.getElementById('catchUpList').innerHTML = missed.map(r => {
-        const date = getDateFromDay(r.day);
-        const isDone = completed[r.day];
-        return '<div class="catch-up-reading">' +
-          '<span class="catch-up-reading-text">' + formatDate(date) + ' — ' + r.book + ' ' + r.chapters + '</span>' +
-          '<div class="catch-up-check ' + (isDone ? 'done' : '') + '" onclick="toggleComplete(' + r.day + '); showCatchUp();">' +
-            (isDone ? '<span style="color:#fff;font-size:0.8rem">✓</span>' : '') +
-          '</div>' +
-        '</div>';
-      }).join('');
-
-      document.getElementById('catchUpModal').classList.add('show');
-    };
-    window.hideCatchUp = function() { document.getElementById('catchUpModal').classList.remove('show'); };
 
     window.exportData = async function() {
       const data = JSON.stringify({ plan: currentPlan, completed, exportDate: new Date().toISOString() });
