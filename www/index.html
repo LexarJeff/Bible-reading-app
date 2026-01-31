@@ -2,7 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-
+  <script>
+    // OTA apply — runs during parsing BEFORE any body content renders.
+    // If cached update is newer, writes it and appends <!-- to comment out
+    // the entire rest of this page. __ota_applied flag prevents re-entry.
+    (function() {
+      try {
+        if (window.__ota_applied) return;
+        var c = localStorage.getItem('ota-html');
+        var v = localStorage.getItem('ota-version');
+        if (!c || !v) return;
+        var cur = "1.9.5";
+        var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
+        for (var i = 0; i < 3; i++) {
+          if ((pa[i]||0) > (pb[i]||0)) {
+            window.__ota_applied = true;
+            document.write(c + '<!--');
+            return;
+          }
+          if ((pa[i]||0) < (pb[i]||0)) return;
+        }
+      } catch(e) {}
+    })();
+  </script>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#1a1612">
@@ -278,32 +300,9 @@
   </div>
 
   <script>
-    // OTA apply — runs during parsing BEFORE any const declarations.
-    // If cached update exists, writes it and appends <!-- to comment out
-    // the rest of this page. __ota_applied flag prevents re-entry.
-    (function() {
-      try {
-        if (window.__ota_applied) return;
-        var c = localStorage.getItem('ota-html');
-        var v = localStorage.getItem('ota-version');
-        if (!c || !v) return;
-        // Inline version compare against bundled version
-        var cur = "1.9.4";
-        var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
-        for (var i = 0; i < 3; i++) {
-          if ((pa[i]||0) > (pb[i]||0)) {
-            window.__ota_applied = true;
-            document.write(c + '<!--');
-            return;
-          }
-          if ((pa[i]||0) < (pb[i]||0)) return;
-        }
-      } catch(e) {}
-    })();
-
     // App version — bump this when publishing a new release
-    // IMPORTANT: Also update the "cur" variable in the OTA apply block above
-    const APP_VERSION = "1.9.4";
+    // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
+    const APP_VERSION = "1.9.5";
 
     // Version comparison
     function compareVersions(a, b) {
