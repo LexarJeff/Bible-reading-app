@@ -278,8 +278,32 @@
   </div>
 
   <script>
+    // OTA apply — runs during parsing BEFORE any const declarations.
+    // If cached update exists, writes it and appends <!-- to comment out
+    // the rest of this page. __ota_applied flag prevents re-entry.
+    (function() {
+      try {
+        if (window.__ota_applied) return;
+        var c = localStorage.getItem('ota-html');
+        var v = localStorage.getItem('ota-version');
+        if (!c || !v) return;
+        // Inline version compare against bundled version
+        var cur = "1.9.3";
+        var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
+        for (var i = 0; i < 3; i++) {
+          if ((pa[i]||0) > (pb[i]||0)) {
+            window.__ota_applied = true;
+            document.write(c + '<!--');
+            return;
+          }
+          if ((pa[i]||0) < (pb[i]||0)) return;
+        }
+      } catch(e) {}
+    })();
+
     // App version — bump this when publishing a new release
-    const APP_VERSION = "1.9.2";
+    // IMPORTANT: Also update the "cur" variable in the OTA apply block above
+    const APP_VERSION = "1.9.3";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -343,16 +367,9 @@
     };
 
     function applyUpdate() {
-      var cached = localStorage.getItem('ota-html');
-      if (cached) {
-        // Replace entire page with a full-screen iframe containing the update.
-        // srcdoc iframe shares the same origin so localStorage works.
-        var style = 'margin:0;padding:0;overflow:hidden;background:#1a1612;';
-        var iframeStyle = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;';
-        document.documentElement.innerHTML = '<head></head><body style="' + style + '">' +
-          '<iframe id="otaFrame" style="' + iframeStyle + '"></iframe></body>';
-        document.getElementById('otaFrame').srcdoc = cached;
-      }
+      // Reload the page — the OTA apply block at the top of the script
+      // will detect the cached update and replace the page during parsing.
+      window.location.reload();
     }
 
     // Helper to open external URLs
