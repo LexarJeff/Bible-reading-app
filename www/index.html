@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "2.0.0";
+        var cur = "2.0.1";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -210,6 +210,8 @@
       <h3>Settings</h3>
       <p>Reading Plan</p>
       <button class="modal-btn" onclick="showPlanPicker()" id="changePlanBtn">Change Reading Plan</button>
+      <button class="modal-btn" id="changeStartDateBtn" onclick="showChangeStartDate()" style="display:none;">Change Start Date</button>
+      <div id="currentStartDateDisplay" style="text-align:center;color:#a89880;font-size:0.75rem;margin-top:0.25rem;display:none;"></div>
       <hr class="settings-divider">
       <p>Backup & Restore</p>
       <button class="modal-btn" onclick="exportData()">📤 Export Progress</button>
@@ -243,6 +245,10 @@
           <div class="plan-name">3 Year</div>
           <div class="plan-desc">A relaxed pace (~1 chapter/day, 1095 days)</div>
         </div>
+        <div class="plan-option" onclick="selectPlan('chrono')">
+          <div class="plan-name">Chronological</div>
+          <div class="plan-desc">Read the Bible in historical order (365 days)</div>
+        </div>
         <div class="plan-option" onclick="selectPlan('freestyle')">
           <div class="plan-name">Freestyle</div>
           <div class="plan-desc">No schedule — check off chapters at your own pace, or spin the wheel for a random pick</div>
@@ -267,10 +273,20 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="startDateModal">
+    <div class="modal">
+      <h3>When would you like to start?</h3>
+      <p>Pick the date your reading plan begins. Your "behind" count will be based on this date.</p>
+      <input type="date" id="startDateInput" style="width:100%;padding:0.75rem;border-radius:8px;border:1px solid rgba(212,165,116,0.3);background:rgba(0,0,0,0.3);color:#e8e0d5;font-family:'Crimson Text',serif;font-size:1rem;margin:0.5rem 0;">
+      <button class="modal-btn" onclick="confirmStartDate()" style="background:linear-gradient(135deg,#2d5a27,#50C878);border-color:#50C878;color:#fff;">Start</button>
+      <button class="modal-close" onclick="cancelStartDate()">Cancel</button>
+    </div>
+  </div>
+
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "2.0.0";
+    const APP_VERSION = "2.0.1";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -353,7 +369,27 @@
 
     // Data
     const STORAGE_KEY = 'bible-reading-tracker-2026';
-    const START_DATE = new Date(2026, 0, 1);
+    const DEFAULT_START_DATE = '2026-01-01';
+
+    function getStartDate() {
+      if (!currentPlan || currentPlan === 'freestyle') return new Date(2026, 0, 1);
+      var stored = localStorage.getItem('bible-reading-start-date-' + currentPlan);
+      if (stored) {
+        var parts = stored.split('-');
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
+      return new Date(2026, 0, 1);
+    }
+
+    function setStartDate(dateStr) {
+      if (!currentPlan) return;
+      localStorage.setItem('bible-reading-start-date-' + currentPlan, dateStr);
+    }
+
+    function getStartDateStr() {
+      if (!currentPlan || currentPlan === 'freestyle') return DEFAULT_START_DATE;
+      return localStorage.getItem('bible-reading-start-date-' + currentPlan) || DEFAULT_START_DATE;
+    }
 
     const BOOK_ABBREV = {
       "Genesis": "Ge", "Exodus": "Ex", "Leviticus": "Le", "Numbers": "Nu",
@@ -419,6 +455,7 @@
       '1year': { label: '1 Year Plan', days: 364 },
       '2year': { label: '2 Year Plan', days: 730 },
       '3year': { label: '3 Year Plan', days: 1095 },
+      'chrono': { label: 'Chronological', days: 365 },
       'freestyle': { label: 'Freestyle', days: 0 }
     };
 
@@ -833,6 +870,374 @@
       { day: 364, book: "Revelation", chapters: "19-22", diamond: false, dot: false },
     ];
 
+    const READINGS_CHRONO = [
+      { day: 1, book: "Genesis", chapters: "Genesis 19-21; 25:12-18; 1 Chronicles 1:28-31", diamond: false, dot: false },
+      { day: 2, book: "Genesis", chapters: "Genesis 22-24", diamond: false, dot: false },
+      { day: 3, book: "Genesis", chapters: "Genesis 25:1-4; 1 Chronicles 1:32-34; Genesis 25:5-11; 25:19-26:35", diamond: false, dot: false },
+      { day: 4, book: "Genesis", chapters: "Genesis 27:1-28:9; 36; 1 Chronicles 1:35-54", diamond: false, dot: false },
+      { day: 5, book: "Genesis", chapters: "Genesis 28:10-30:43", diamond: false, dot: false },
+      { day: 6, book: "Genesis", chapters: "Genesis 31, 32", diamond: false, dot: false },
+      { day: 7, book: "Genesis", chapters: "Genesis 33-35; 1 Chronicles 2:1, 2", diamond: false, dot: false },
+      { day: 8, book: "Genesis", chapters: "Genesis 37-39", diamond: false, dot: false },
+      { day: 9, book: "Genesis", chapters: "Genesis 40, 41", diamond: false, dot: false },
+      { day: 10, book: "Genesis", chapters: "Genesis 42-44", diamond: false, dot: false },
+      { day: 11, book: "Genesis", chapters: "Genesis 45:1-46:9; 1 Chronicles 5:1-6; Genesis 46:10-12; 1 Chronicles 2:18-55", diamond: false, dot: false },
+      { day: 12, book: "1 Chronicles", chapters: "1 Chronicles 4:1-23; Genesis 46:13; 1 Chronicles 7:1-5; Genesis 46:14-18; 1 Chronicles 7:30-40; Genesis 46:19-25; 1 Chronicles 7:6-12; Genesis 46:26-47:12", diamond: false, dot: false },
+      { day: 13, book: "Genesis", chapters: "Genesis 47:13-50:26", diamond: false, dot: false },
+      { day: 14, book: "Job", chapters: "Job 1-3", diamond: false, dot: false },
+      { day: 15, book: "Job", chapters: "Job 4-7", diamond: false, dot: false },
+      { day: 16, book: "Job", chapters: "Job 8-10", diamond: false, dot: false },
+      { day: 17, book: "Job", chapters: "Job 11-14", diamond: false, dot: false },
+      { day: 18, book: "Job", chapters: "Job 15-18", diamond: false, dot: false },
+      { day: 19, book: "Job", chapters: "Job 19-21", diamond: false, dot: false },
+      { day: 20, book: "Job", chapters: "Job 22-26", diamond: false, dot: false },
+      { day: 21, book: "Job", chapters: "Job 27-29", diamond: false, dot: false },
+      { day: 22, book: "Job", chapters: "Job 30, 31", diamond: false, dot: false },
+      { day: 23, book: "Job", chapters: "Job 32-34", diamond: false, dot: false },
+      { day: 24, book: "Job", chapters: "Job 35-37", diamond: false, dot: false },
+      { day: 25, book: "Job", chapters: "Job 38, 39", diamond: false, dot: false },
+      { day: 26, book: "Job", chapters: "Job 40-42", diamond: false, dot: false },
+      { day: 27, book: "Exodus", chapters: "Exodus 1:1-4:17", diamond: false, dot: false },
+      { day: 28, book: "Exodus", chapters: "Exodus 4:18-6:27; 1 Chronicles 6:1-4; Exodus 6:28-7:13", diamond: false, dot: false },
+      { day: 29, book: "Exodus", chapters: "Exodus 7:14-9:35", diamond: false, dot: false },
+      { day: 30, book: "Exodus", chapters: "Exodus 10-12", diamond: false, dot: false },
+      { day: 31, book: "Exodus", chapters: "Exodus 13-15", diamond: false, dot: false },
+      { day: 32, book: "Exodus", chapters: "Exodus 16-18", diamond: false, dot: false },
+      { day: 33, book: "Exodus", chapters: "Exodus 19-21", diamond: false, dot: false },
+      { day: 34, book: "Exodus", chapters: "Exodus 22-24", diamond: false, dot: false },
+      { day: 35, book: "Exodus", chapters: "Exodus 25-27", diamond: false, dot: false },
+      { day: 36, book: "Exodus", chapters: "Exodus 28, 29", diamond: false, dot: false },
+      { day: 37, book: "Exodus", chapters: "Exodus 30:1-33:6", diamond: false, dot: false },
+      { day: 38, book: "Exodus", chapters: "Exodus 33:7-36:7", diamond: false, dot: false },
+      { day: 39, book: "Exodus", chapters: "Exodus 36:8-38:31", diamond: false, dot: false },
+      { day: 40, book: "Exodus", chapters: "Exodus 39, 40", diamond: false, dot: false },
+      { day: 41, book: "Leviticus", chapters: "Leviticus 1-4", diamond: false, dot: false },
+      { day: 42, book: "Leviticus", chapters: "Leviticus 5-7", diamond: false, dot: false },
+      { day: 43, book: "Leviticus", chapters: "Leviticus 8-10", diamond: false, dot: false },
+      { day: 44, book: "Leviticus", chapters: "Leviticus 11:1-13:46", diamond: false, dot: false },
+      { day: 45, book: "Leviticus", chapters: "Leviticus 13:47-15:33", diamond: false, dot: false },
+      { day: 46, book: "Leviticus", chapters: "Leviticus 16-18", diamond: false, dot: false },
+      { day: 47, book: "Leviticus", chapters: "Leviticus 19-21", diamond: false, dot: false },
+      { day: 48, book: "Leviticus", chapters: "Leviticus 22, 23", diamond: false, dot: false },
+      { day: 49, book: "Leviticus", chapters: "Leviticus 24, 25", diamond: false, dot: false },
+      { day: 50, book: "Leviticus", chapters: "Leviticus 26, 27", diamond: false, dot: false },
+      { day: 51, book: "Numbers", chapters: "Numbers 1, 2", diamond: false, dot: false },
+      { day: 52, book: "Numbers", chapters: "Numbers 3:1-4:33", diamond: false, dot: false },
+      { day: 53, book: "Numbers", chapters: "Numbers 4:34-6:27", diamond: false, dot: false },
+      { day: 54, book: "Numbers", chapters: "Numbers 7", diamond: false, dot: false },
+      { day: 55, book: "Numbers", chapters: "Numbers 8-10", diamond: false, dot: false },
+      { day: 56, book: "Numbers", chapters: "Numbers 11-13", diamond: false, dot: false },
+      { day: 57, book: "Numbers", chapters: "Numbers 14, 15", diamond: false, dot: false },
+      { day: 58, book: "Numbers", chapters: "Numbers 16-18", diamond: false, dot: false },
+      { day: 59, book: "Numbers", chapters: "Numbers 19-21", diamond: false, dot: false },
+      { day: 60, book: "Numbers", chapters: "Numbers 22-24", diamond: false, dot: false },
+      { day: 61, book: "Numbers", chapters: "Numbers 25:1-26:34; 1 Chronicles 7:13-19; Numbers 26:35-37; 1 Chronicles 7:20-29; Numbers 26:38-65", diamond: false, dot: false },
+      { day: 62, book: "Numbers", chapters: "Numbers 27-29", diamond: false, dot: false },
+      { day: 63, book: "Numbers", chapters: "Numbers 30, 31", diamond: false, dot: false },
+      { day: 64, book: "Numbers", chapters: "Numbers 32, 33", diamond: false, dot: false },
+      { day: 65, book: "Numbers", chapters: "Numbers 34-36", diamond: false, dot: false },
+      { day: 66, book: "Deuteronomy", chapters: "Deuteronomy 1:1-3:11", diamond: false, dot: false },
+      { day: 67, book: "Deuteronomy", chapters: "Deuteronomy 3:12-5:33", diamond: false, dot: false },
+      { day: 68, book: "Deuteronomy", chapters: "Deuteronomy 6-8", diamond: false, dot: false },
+      { day: 69, book: "Deuteronomy", chapters: "Deuteronomy 9-11", diamond: false, dot: false },
+      { day: 70, book: "Deuteronomy", chapters: "Deuteronomy 12-14", diamond: false, dot: false },
+      { day: 71, book: "Deuteronomy", chapters: "Deuteronomy 15-18", diamond: false, dot: false },
+      { day: 72, book: "Deuteronomy", chapters: "Deuteronomy 19-22", diamond: false, dot: false },
+      { day: 73, book: "Deuteronomy", chapters: "Deuteronomy 23-26", diamond: false, dot: false },
+      { day: 74, book: "Deuteronomy", chapters: "Deuteronomy 27, 28", diamond: false, dot: false },
+      { day: 75, book: "Deuteronomy", chapters: "Deuteronomy 29:1-31:29", diamond: false, dot: false },
+      { day: 76, book: "Deuteronomy", chapters: "Deuteronomy 31:30-32:52; Psalms 90", diamond: false, dot: false },
+      { day: 77, book: "Deuteronomy", chapters: "Deuteronomy 33, 34; Joshua 1, 2", diamond: false, dot: false },
+      { day: 78, book: "Joshua", chapters: "Joshua 3-6", diamond: false, dot: false },
+      { day: 79, book: "Joshua", chapters: "Joshua 7-9", diamond: false, dot: false },
+      { day: 80, book: "Joshua", chapters: "Joshua 10-12", diamond: false, dot: false },
+      { day: 81, book: "Joshua", chapters: "Joshua 13-15", diamond: false, dot: false },
+      { day: 82, book: "Joshua", chapters: "Joshua 16:1-19:9; 1 Chronicles 4:24-33; Joshua 19:10-31", diamond: false, dot: false },
+      { day: 83, book: "Joshua", chapters: "Joshua 19:32-21:45; 1 Chronicles 6:54-81", diamond: false, dot: false },
+      { day: 84, book: "Joshua", chapters: "Joshua 22-24", diamond: false, dot: false },
+      { day: 85, book: "Judges", chapters: "Judges 1:1-3:6; 17", diamond: false, dot: false },
+      { day: 86, book: "Judges", chapters: "Judges 18; 3:7-4:24", diamond: false, dot: false },
+      { day: 87, book: "Judges", chapters: "Judges 5-7", diamond: false, dot: false },
+      { day: 88, book: "Judges", chapters: "Judges 8, 9", diamond: false, dot: false },
+      { day: 89, book: "Judges", chapters: "Judges 10-13", diamond: false, dot: false },
+      { day: 90, book: "Judges", chapters: "Judges 14-16", diamond: false, dot: false },
+      { day: 91, book: "Judges", chapters: "Judges 19-21", diamond: false, dot: false },
+      { day: 92, book: "Ruth", chapters: "Ruth 1-4", diamond: false, dot: false },
+      { day: 93, book: "1 Samuel", chapters: "1 Samuel 1-3", diamond: false, dot: false },
+      { day: 94, book: "1 Samuel", chapters: "1 Samuel 4-7", diamond: false, dot: false },
+      { day: 95, book: "1 Samuel", chapters: "1 Samuel 8-10", diamond: false, dot: false },
+      { day: 96, book: "1 Samuel", chapters: "1 Samuel 11-13", diamond: false, dot: false },
+      { day: 97, book: "1 Samuel", chapters: "1 Samuel 14, 15", diamond: false, dot: false },
+      { day: 98, book: "1 Samuel", chapters: "1 Samuel 16; Psalms 8; 9; 11; 19; 144", diamond: false, dot: false },
+      { day: 99, book: "1 Samuel", chapters: "1 Samuel 17, 18; Psalms 23; 58", diamond: false, dot: false },
+      { day: 100, book: "1 Samuel", chapters: "1 Samuel 19, 20; Psalms 59; 133", diamond: false, dot: false },
+      { day: 101, book: "1 Samuel", chapters: "1 Samuel 21; Psalms 34; 56; 1 Samuel 22:1-5; Psalms 57; 142; 1 Chronicles 12:8-18", diamond: false, dot: false },
+      { day: 102, book: "1 Samuel", chapters: "1 Samuel 22:6-23; Psalms 52; 1 Samuel 23; Psalms 54; 63", diamond: false, dot: false },
+      { day: 103, book: "Psalms", chapters: "Psalms 13; 22; 1 Samuel 24", diamond: false, dot: false },
+      { day: 104, book: "Psalms", chapters: "Psalms 7; 17; 35", diamond: false, dot: false },
+      { day: 105, book: "1 Samuel", chapters: "1 Samuel 25; Psalms 14; 53", diamond: false, dot: false },
+      { day: 106, book: "2 Samuel", chapters: "2 Samuel 22; Psalms 18; 1 Samuel 26", diamond: false, dot: false },
+      { day: 107, book: "1 Samuel", chapters: "1 Samuel 27; Psalms 31; 1 Chronicles 12:1-7; 1 Samuel 28:1-3; 29; 30", diamond: false, dot: false },
+      { day: 108, book: "Psalms", chapters: "Psalms 69; 86; 131; 1 Samuel 28:3-25", diamond: false, dot: false },
+      { day: 109, book: "1 Samuel", chapters: "1 Samuel 30, 31; 1 Chronicles 10; 2 Samuel 4:4; 1", diamond: false, dot: false },
+      { day: 110, book: "2 Samuel", chapters: "2 Samuel 2:1-3:5; 1 Chronicles 3:1-4; 2 Samuel 3:6-4:3; 4:5-5:5; 1 Chronicles 11:1-3", diamond: false, dot: false },
+      { day: 111, book: "1 Chronicles", chapters: "1 Chronicles 12:23-40; Psalms 2; 78", diamond: false, dot: false },
+      { day: 112, book: "2 Samuel", chapters: "2 Samuel 5:6-10; 1 Chronicles 11:4-9; 2 Samuel 5:17-21; 1 Chronicles 14:8-12; 2 Samuel 23:13-19; 1 Chronicles 11:15-21; 2 Samuel 5:22-25; 1 Chronicles 14:13-17; 2 Samuel 5:11, 12; 1 Chronicles 14:1, 2", diamond: false, dot: false },
+      { day: 113, book: "2 Samuel", chapters: "2 Samuel 6:1-11; 1 Chronicles 13; Psalms 101; 2 Samuel 6:12-23; 1 Chronicles 15, 16", diamond: false, dot: false },
+      { day: 114, book: "Psalms", chapters: "Psalms 15; 24; 68; 132", diamond: false, dot: false },
+      { day: 115, book: "Psalms", chapters: "Psalms 96; 105; 106", diamond: false, dot: false },
+      { day: 116, book: "2 Samuel", chapters: "2 Samuel 7; 1 Chronicles 17; Psalms 16; 25; 36", diamond: false, dot: false },
+      { day: 117, book: "2 Samuel", chapters: "2 Samuel 8, 9; 1 Chronicles 18; Psalms 60", diamond: false, dot: false },
+      { day: 118, book: "2 Samuel", chapters: "2 Samuel 10; 1 Chronicles 19; Psalms 20; 21; 2 Samuel 11", diamond: false, dot: false },
+      { day: 119, book: "2 Samuel", chapters: "2 Samuel 12:1-25; Psalms 6; 32; 38; 51", diamond: false, dot: false },
+      { day: 120, book: "2 Samuel", chapters: "2 Samuel 12:26-31; 1 Chronicles 20:1-3; Psalms 103; 2 Samuel 23:34; 2 Samuel 13", diamond: false, dot: false },
+      { day: 121, book: "2 Samuel", chapters: "2 Samuel 14; Psalms 109; 2 Samuel 15:1-12; Psalms 140; 141", diamond: false, dot: false },
+      { day: 122, book: "2 Samuel", chapters: "2 Samuel 15:13-37; Psalms 3; 4; 2 Samuel 16:1-14; Psalms 5; 12; 2 Samuel 16:15-23", diamond: false, dot: false },
+      { day: 123, book: "Psalms", chapters: "Psalms 10; 26; 40; 58", diamond: false, dot: false },
+      { day: 124, book: "2 Samuel", chapters: "2 Samuel 15:37; 16:15; Psalms 27; 2 Samuel 17", diamond: false, dot: false },
+      { day: 125, book: "2 Samuel", chapters: "2 Samuel 16:16-17:23; Psalms 28; 41-43; 55; 64", diamond: false, dot: false },
+      { day: 126, book: "2 Samuel", chapters: "2 Samuel 17:24-26; 1 Chronicles 2:17; 2 Samuel 17:27-18:18; Psalms 58; 61, 62", diamond: false, dot: false },
+      { day: 127, book: "2 Samuel", chapters: "2 Samuel 18:19-33; Psalms 39; 70, 71; 84; 143; 2 Samuel 19", diamond: false, dot: false },
+      { day: 128, book: "2 Samuel", chapters: "2 Samuel 20; Psalms 140, 141; 1 Chronicles 22; Psalms 1; 29; 33", diamond: false, dot: false },
+      { day: 129, book: "1 Chronicles", chapters: "1 Chronicles 23:1-23; 6:16-30; 23:24-24:31", diamond: false, dot: false },
+      { day: 130, book: "1 Chronicles", chapters: "1 Chronicles 25; 6:31-53; 26", diamond: false, dot: false },
+      { day: 131, book: "1 Chronicles", chapters: "1 Chronicles 27:1-29:22", diamond: false, dot: false },
+      { day: 132, book: "Psalms", chapters: "Psalms 30; 108; 110; 138; 2 Samuel 23:1-7", diamond: false, dot: false },
+      { day: 133, book: "Psalms", chapters: "Psalms 45; 72; 127", diamond: false, dot: false },
+      { day: 134, book: "2 Samuel", chapters: "2 Samuel 23:8-12; 1 Chronicles 11:10-14; 2 Samuel 21:15-22; 1 Chronicles 20:4-8; 2 Samuel 23:20-23; 1 Chronicles 11:22-25; 2 Samuel 23:24-39; 1 Chronicles 11:26-47", diamond: false, dot: false },
+      { day: 135, book: "2 Samuel", chapters: "2 Samuel 24; 1 Chronicles 21; Psalms 65; 66; 67", diamond: false, dot: false },
+      { day: 136, book: "1 Chronicles", chapters: "1 Chronicles 28, 29; 2 Samuel 21:1-14", diamond: false, dot: false },
+      { day: 137, book: "1 Kings", chapters: "1 Kings 1, 2; Psalms 37; 79; 94", diamond: false, dot: false },
+      { day: 138, book: "1 Kings", chapters: "1 Kings 3; 2 Chronicles 1; Psalms 42; 43; 100", diamond: false, dot: false },
+      { day: 139, book: "1 Kings", chapters: "1 Kings 9:24; 2 Chronicles 8:11; 1 Kings 11:41-43; 2 Chronicles 9:29-31; 1 Kings 9:25; 2 Chronicles 8:12-16; 1 Kings 9:17-19; 2 Chronicles 8:4-6; 1 Kings 9:26-28; 2 Chronicles 8:17, 18; 1 Kings 10:22; 2 Chronicles 9:21", diamond: false, dot: false },
+      { day: 140, book: "1 Kings", chapters: "1 Kings 10:1-13; 2 Chronicles 9:1-12; 1 Kings 4:1-19; 4:29-34; Proverbs 1", diamond: false, dot: false },
+      { day: 141, book: "Proverbs", chapters: "Proverbs 2-4", diamond: false, dot: false },
+      { day: 142, book: "Proverbs", chapters: "Proverbs 5-7", diamond: false, dot: false },
+      { day: 143, book: "Proverbs", chapters: "Proverbs 8-10", diamond: false, dot: false },
+      { day: 144, book: "Proverbs", chapters: "Proverbs 11-13", diamond: false, dot: false },
+      { day: 145, book: "Proverbs", chapters: "Proverbs 14, 15", diamond: false, dot: false },
+      { day: 146, book: "Proverbs", chapters: "Proverbs 16-18", diamond: false, dot: false },
+      { day: 147, book: "Proverbs", chapters: "Proverbs 19-21", diamond: false, dot: false },
+      { day: 148, book: "Proverbs", chapters: "Proverbs 22-24", diamond: false, dot: false },
+      { day: 149, book: "Proverbs", chapters: "Proverbs 25-27", diamond: false, dot: false },
+      { day: 150, book: "Proverbs", chapters: "Proverbs 28-29", diamond: false, dot: false },
+      { day: 151, book: "Proverbs", chapters: "Proverbs 30, 31", diamond: false, dot: false },
+      { day: 152, book: "Song of Solomon", chapters: "Song of Solomon 1-4", diamond: false, dot: false },
+      { day: 153, book: "Song of Solomon", chapters: "Song of Solomon 5-8; 1 Kings 5; 2 Chronicles 2", diamond: false, dot: false },
+      { day: 154, book: "1 Kings", chapters: "1 Kings 6; 2 Chronicles 3; 1 Kings 7:1-22; 2 Chronicles 4:1-22", diamond: false, dot: false },
+      { day: 155, book: "Psalms", chapters: "Psalms 73; 88; 1 Kings 11:41-43; 2 Chronicles 9:29-31; 1 Kings 14:21; 2 Chronicles 12:13, 14", diamond: false, dot: false },
+      { day: 156, book: "1 Kings", chapters: "1 Kings 12:1-19; 2 Chronicles 10; 1 Kings 12:20-24; 2 Chronicles 11:1-4; 1 Kings 12:25-31; 2 Chronicles 11:13-17; 1 Kings 12:32-13:34", diamond: false, dot: false },
+      { day: 157, book: "1 Kings", chapters: "1 Kings 14:1-18; 2 Chronicles 11:5-12; 11:18-23; 1 Kings 14:22-28; 2 Chronicles 12:1-12; Psalms 89", diamond: false, dot: false },
+      { day: 158, book: "1 Kings", chapters: "1 Kings 14:29-31; 2 Chronicles 12:15, 16; 1 Kings 15:1-8; 2 Chronicles 13; 1 Kings 15:9-14; 2 Chronicles 14, 15", diamond: false, dot: false },
+      { day: 159, book: "2 Chronicles", chapters: "2 Chronicles 16:1-6; 1 Kings 15:17-22; 2 Chronicles 16:7-17:19; 1 Kings 14:19, 20; 15:25-32", diamond: false, dot: false },
+      { day: 160, book: "1 Kings", chapters: "1 Kings 15:33-16:28; 2 Kings 14:21, 22; 15:1-5; 2 Chronicles 26:1-21; Amos 1", diamond: false, dot: false },
+      { day: 161, book: "Psalms", chapters: "Psalms 104; 114, 115; 1 Kings 20", diamond: false, dot: false },
+      { day: 162, book: "1 Kings", chapters: "1 Kings 21; 22:51-53; 22:1-35; 2 Chronicles 18:2-34", diamond: false, dot: false },
+      { day: 163, book: "1 Kings", chapters: "1 Kings 22:36-40; 2 Kings 1:1; 2 Chronicles 19:1-20:30; Psalms 46-48", diamond: false, dot: false },
+      { day: 164, book: "Psalms", chapters: "Psalms 49; 83; 91; 1 Kings 22:47-49; 2 Chronicles 20:35-37; 2 Kings 1:2-18; 3:1-3", diamond: false, dot: false },
+      { day: 165, book: "2 Kings", chapters: "2 Kings 2; 3:4-27; 1 Kings 22:50; 2 Chronicles 21:1-3; 2 Kings 8:16-25; 2 Chronicles 21:4-20; 22:1-6; 2 Kings 8:26-29", diamond: false, dot: false },
+      { day: 166, book: "2 Kings", chapters: "2 Kings 9; 2 Chronicles 22:7-9; 2 Kings 10:1-27; 11:1-3; 2 Chronicles 22:10-12", diamond: false, dot: false },
+      { day: 167, book: "2 Kings", chapters: "2 Kings 10:28-36; 2 Chronicles 24:1-16; 2 Kings 12:1-16; 2 Chronicles 24:17-22", diamond: false, dot: false },
+      { day: 168, book: "2 Kings", chapters: "2 Kings 11:4-21; 2 Chronicles 23; 2 Kings 12:17-21; 2 Chronicles 24:23-27", diamond: false, dot: false },
+      { day: 169, book: "2 Kings", chapters: "2 Kings 13; 2 Chronicles 25:1-4; 2 Kings 14:1-14; 2 Chronicles 25:5-24", diamond: false, dot: false },
+      { day: 170, book: "2 Kings", chapters: "2 Kings 14:21, 22; 15:1-5; 2 Chronicles 26:1-21; Amos 1", diamond: false, dot: false },
+      { day: 171, book: "Amos", chapters: "Amos 2-5; Joel", diamond: false, dot: false },
+      { day: 172, book: "Amos", chapters: "Amos 6-9; Hosea 1-3", diamond: false, dot: false },
+      { day: 173, book: "Hosea", chapters: "Hosea 4, 5; 2 Kings 14:24-28; Jonah; 2 Kings 14:29; 15:8-16; Isaiah 1-4", diamond: false, dot: false },
+      { day: 174, book: "2 Kings", chapters: "2 Kings 15:17-20; 1 Chronicles 5:23-26; 2 Kings 15:6, 7; 2 Chronicles 26:22, 23; 2 Kings 15:21-29; Isaiah 6; 2 Kings 15:32-38; 2 Chronicles 27; 1 Chronicles 5:11-17", diamond: false, dot: false },
+      { day: 175, book: "Isaiah", chapters: "Isaiah 7-9; 2 Kings 16:1-9; 2 Chronicles 28:1-21", diamond: false, dot: false },
+      { day: 176, book: "Micah", chapters: "Micah 1-3; 2 Kings 15:30; 17:1, 2; 2 Chronicles 28:22-27; Hosea 6-8", diamond: false, dot: false },
+      { day: 177, book: "Hosea", chapters: "Hosea 9-14; Micah 4-7", diamond: false, dot: false },
+      { day: 178, book: "2 Kings", chapters: "2 Kings 16:10-20; Isaiah 10-12", diamond: false, dot: false },
+      { day: 179, book: "Isaiah", chapters: "Isaiah 13-17", diamond: false, dot: false },
+      { day: 180, book: "Isaiah", chapters: "Isaiah 18-23", diamond: false, dot: false },
+      { day: 181, book: "2 Kings", chapters: "2 Kings 17:3-23; 18:1-8; 2 Chronicles 29, 30", diamond: false, dot: false },
+      { day: 182, book: "2 Chronicles", chapters: "2 Chronicles 31; 2 Kings 17:24-41; 18:9-12", diamond: false, dot: false },
+      { day: 183, book: "Micah", chapters: "Micah 4-7", diamond: false, dot: false },
+      { day: 184, book: "2 Kings", chapters: "2 Kings 18:13-19:37; 2 Chronicles 32:1-23", diamond: false, dot: false },
+      { day: 185, book: "Psalms", chapters: "Psalms 75-77", diamond: false, dot: false },
+      { day: 186, book: "Psalms", chapters: "Psalms 87; 125; Isaiah 11", diamond: false, dot: false },
+      { day: 187, book: "Isaiah", chapters: "Isaiah 10; 12; 28", diamond: false, dot: false },
+      { day: 188, book: "Isaiah", chapters: "Isaiah 29-32", diamond: false, dot: false },
+      { day: 189, book: "Isaiah", chapters: "Isaiah 33:1-37:13", diamond: false, dot: false },
+      { day: 190, book: "Isaiah", chapters: "Isaiah 37:14-38:22; 2 Kings 20:1-11; 2 Chronicles 32:24-26; 2 Kings 20:12-19; 2 Chronicles 32:27-31; Isaiah 39", diamond: false, dot: false },
+      { day: 191, book: "2 Kings", chapters: "2 Kings 20:20, 21; 2 Chronicles 32:32, 33; 2 Kings 21:1-17; 2 Chronicles 33:1-9; Psalms 82; 2 Chronicles 33:10-19; 2 Kings 21:18-26; 2 Chronicles 33:20-25; 2 Kings 22:1, 2; 2 Chronicles 34:1-3", diamond: false, dot: false },
+      { day: 192, book: "Isaiah", chapters: "Isaiah 40-42", diamond: false, dot: false },
+      { day: 193, book: "Isaiah", chapters: "Isaiah 43-46", diamond: false, dot: false },
+      { day: 194, book: "Isaiah", chapters: "Isaiah 47-50", diamond: false, dot: false },
+      { day: 195, book: "Isaiah", chapters: "Isaiah 51-55", diamond: false, dot: false },
+      { day: 196, book: "Isaiah", chapters: "Isaiah 56-60", diamond: false, dot: false },
+      { day: 197, book: "Isaiah", chapters: "Isaiah 61-65", diamond: false, dot: false },
+      { day: 198, book: "Isaiah", chapters: "Isaiah 66; 2 Kings 21:1-17; 2 Chronicles 33:1-9; Psalms 82; 2 Chronicles 33:10-19; 2 Kings 21:18-26; 2 Chronicles 33:20-25; 2 Kings 22:1, 2; 2 Chronicles 34:1-3", diamond: false, dot: false },
+      { day: 199, book: "Zephaniah", chapters: "Zephaniah; 2 Chronicles 34:4-7", diamond: false, dot: false },
+      { day: 200, book: "Jeremiah", chapters: "Jeremiah 1-3", diamond: false, dot: false },
+      { day: 201, book: "Jeremiah", chapters: "Jeremiah 4-6", diamond: false, dot: false },
+      { day: 202, book: "Jeremiah", chapters: "Jeremiah 7-9", diamond: false, dot: false },
+      { day: 203, book: "Jeremiah", chapters: "Jeremiah 10-13", diamond: false, dot: false },
+      { day: 204, book: "Jeremiah", chapters: "Jeremiah 14-17", diamond: false, dot: false },
+      { day: 205, book: "Jeremiah", chapters: "Jeremiah 18-22", diamond: false, dot: false },
+      { day: 206, book: "Jeremiah", chapters: "Jeremiah 23-25", diamond: false, dot: false },
+      { day: 207, book: "Jeremiah", chapters: "Jeremiah 26; 35; 36; 45", diamond: false, dot: false },
+      { day: 208, book: "Nahum", chapters: "Nahum; 2 Kings 22:3-20; 2 Chronicles 34:8-28", diamond: false, dot: false },
+      { day: 209, book: "2 Kings", chapters: "2 Kings 23:1-28; 2 Chronicles 34:29-35:19", diamond: false, dot: false },
+      { day: 210, book: "Habakkuk", chapters: "Habakkuk; 2 Chronicles 35:20-27; 2 Kings 23:29-37; 2 Chronicles 36:1-5", diamond: false, dot: false },
+      { day: 211, book: "Jeremiah", chapters: "Jeremiah 22:10-17; 46-48", diamond: false, dot: false },
+      { day: 212, book: "Jeremiah", chapters: "Jeremiah 49, 50", diamond: false, dot: false },
+      { day: 213, book: "Jeremiah", chapters: "Jeremiah 51; 2 Kings 24:1-4; 2 Chronicles 36:6, 7", diamond: false, dot: false },
+      { day: 214, book: "Daniel", chapters: "Daniel 1; Jeremiah 27; 28; 24", diamond: false, dot: false },
+      { day: 215, book: "Jeremiah", chapters: "Jeremiah 29-31", diamond: false, dot: false },
+      { day: 216, book: "Ezekiel", chapters: "Ezekiel 1-4", diamond: false, dot: false },
+      { day: 217, book: "Ezekiel", chapters: "Ezekiel 5-9", diamond: false, dot: false },
+      { day: 218, book: "Ezekiel", chapters: "Ezekiel 10-13", diamond: false, dot: false },
+      { day: 219, book: "Ezekiel", chapters: "Ezekiel 14-16", diamond: false, dot: false },
+      { day: 220, book: "Ezekiel", chapters: "Ezekiel 17:1-20:29", diamond: false, dot: false },
+      { day: 221, book: "Ezekiel", chapters: "Ezekiel 20:30-22:31", diamond: false, dot: false },
+      { day: 222, book: "Ezekiel", chapters: "Ezekiel 23; Jeremiah 21; Ezekiel 24", diamond: false, dot: false },
+      { day: 223, book: "Ezekiel", chapters: "Ezekiel 25; Jeremiah 37, 38; Ezekiel 29:1-16; 30:20-26", diamond: false, dot: false },
+      { day: 224, book: "Ezekiel", chapters: "Ezekiel 31; Jeremiah 32, 33; Jeremiah 34", diamond: false, dot: false },
+      { day: 225, book: "2 Kings", chapters: "2 Kings 25:1-21; 2 Chronicles 36:15-21; Jeremiah 39", diamond: false, dot: false },
+      { day: 226, book: "Jeremiah", chapters: "Jeremiah 40-42; Obadiah", diamond: false, dot: false },
+      { day: 227, book: "Jeremiah", chapters: "Jeremiah 43, 44; Lamentations 1, 2", diamond: false, dot: false },
+      { day: 228, book: "Lamentations", chapters: "Lamentations 3-5; 2 Kings 25:22-26", diamond: false, dot: false },
+      { day: 229, book: "Ezekiel", chapters: "Ezekiel 26-28", diamond: false, dot: false },
+      { day: 230, book: "Ezekiel", chapters: "Ezekiel 29:17-30:19", diamond: false, dot: false },
+      { day: 231, book: "Ezekiel", chapters: "Ezekiel 32; 33:21-33", diamond: false, dot: false },
+      { day: 232, book: "Ezekiel", chapters: "Ezekiel 34-36", diamond: false, dot: false },
+      { day: 233, book: "Ezekiel", chapters: "Ezekiel 37, 38", diamond: false, dot: false },
+      { day: 234, book: "Ezekiel", chapters: "Ezekiel 39-41", diamond: false, dot: false },
+      { day: 235, book: "Ezekiel", chapters: "Ezekiel 42-44", diamond: false, dot: false },
+      { day: 236, book: "Ezekiel", chapters: "Ezekiel 45-48", diamond: false, dot: false },
+      { day: 237, book: "Daniel", chapters: "Daniel 2, 3", diamond: false, dot: false },
+      { day: 238, book: "Daniel", chapters: "Daniel 4-6", diamond: false, dot: false },
+      { day: 239, book: "Daniel", chapters: "Daniel 7-9", diamond: false, dot: false },
+      { day: 240, book: "Daniel", chapters: "Daniel 10-12", diamond: false, dot: false },
+      { day: 241, book: "2 Kings", chapters: "2 Kings 25:27-30; Psalms 44; 74; 80; 102", diamond: false, dot: false },
+      { day: 242, book: "Psalms", chapters: "Psalms 79; 85; 106; 137", diamond: false, dot: false },
+      { day: 243, book: "Ezra", chapters: "Ezra 1, 2", diamond: false, dot: false },
+      { day: 244, book: "Ezra", chapters: "Ezra 3; Psalms 92; 126", diamond: false, dot: false },
+      { day: 245, book: "Ezra", chapters: "Ezra 4; Haggai", diamond: false, dot: false },
+      { day: 246, book: "Zechariah", chapters: "Zechariah 1-4", diamond: false, dot: false },
+      { day: 247, book: "Zechariah", chapters: "Zechariah 5-9", diamond: false, dot: false },
+      { day: 248, book: "Zechariah", chapters: "Zechariah 10-14", diamond: false, dot: false },
+      { day: 249, book: "Ezra", chapters: "Ezra 5, 6; Psalms 118; 138", diamond: false, dot: false },
+      { day: 250, book: "Psalms", chapters: "Psalms 145; 148-150", diamond: false, dot: false },
+      { day: 251, book: "Psalms", chapters: "Psalms 93; 95-97; 99", diamond: false, dot: false },
+      { day: 252, book: "Esther", chapters: "Esther 1-4", diamond: false, dot: false },
+      { day: 253, book: "Esther", chapters: "Esther 5-10", diamond: false, dot: false },
+      { day: 254, book: "Ezra", chapters: "Ezra 7-10", diamond: false, dot: false },
+      { day: 255, book: "Nehemiah", chapters: "Nehemiah 1-4", diamond: false, dot: false },
+      { day: 256, book: "Nehemiah", chapters: "Nehemiah 5:1-7:3; Psalms 107", diamond: false, dot: false },
+      { day: 257, book: "Psalms", chapters: "Psalms 111, 112; 117; 119:1-72", diamond: false, dot: false },
+      { day: 258, book: "Psalms", chapters: "Psalms 119:73-176", diamond: false, dot: false },
+      { day: 259, book: "Psalms", chapters: "Psalms 121; 123; 128; 130; 135, 136", diamond: false, dot: false },
+      { day: 260, book: "Nehemiah", chapters: "Nehemiah 8, 9; Psalms 146", diamond: false, dot: false },
+      { day: 261, book: "Nehemiah", chapters: "Nehemiah 10, 11; Psalms 147", diamond: false, dot: false },
+      { day: 262, book: "1 Chronicles", chapters: "1 Chronicles 9:1-34; Nehemiah 12; Psalms 98; 134", diamond: false, dot: false },
+      { day: 263, book: "Nehemiah", chapters: "Nehemiah 13; Psalms 50", diamond: false, dot: false },
+      { day: 264, book: "Malachi", chapters: "Malachi", diamond: false, dot: false },
+      { day: 265, book: "Luke", chapters: "Luke 1", diamond: false, dot: false },
+      { day: 266, book: "Matthew", chapters: "Matthew 1:18-25; Luke 2:1-20; Matthew 1:1-17; Luke 3:23-38; 2:21-40", diamond: false, dot: false },
+      { day: 267, book: "Matthew", chapters: "Matthew 2; Luke 2:41-52; Mark 1:1-8; Matthew 3:1-12; Luke 3:1-20; John 1:1-18", diamond: false, dot: false },
+      { day: 268, book: "John", chapters: "John 1:19-28; Mark 1:9-11; Matthew 3:13-17; Luke 3:21, 22; John 1:29-34; Mark 1:12, 13; Matthew 4:1-11; Luke 4:1-13; John 1:35-51; Mark 1:16-20; Matthew 4:18-22", diamond: false, dot: false },
+      { day: 269, book: "John", chapters: "John 2; Mark 1:14, 15; Matthew 4:12-17; Luke 4:14, 15; John 3:1-21", diamond: false, dot: false },
+      { day: 270, book: "John", chapters: "John 3:22-4:45; Mark 1:14; Matthew 4:12; Luke 4:14", diamond: false, dot: false },
+      { day: 271, book: "Mark", chapters: "Mark 1:16-39; Matthew 4:13-25; Luke 4:16-44; 5:1-16", diamond: false, dot: false },
+      { day: 272, book: "Mark", chapters: "Mark 1:40-2:22; Matthew 8:1-4; 9:1-17; Luke 5:12-39", diamond: false, dot: false },
+      { day: 273, book: "John", chapters: "John 5; Mark 2:23-3:12; Matthew 12:1-21; Luke 6:1-11", diamond: false, dot: false },
+      { day: 274, book: "Mark", chapters: "Mark 3:13-19; Matthew 10:1-4; Luke 6:12-16; Matthew 5", diamond: false, dot: false },
+      { day: 275, book: "Matthew", chapters: "Matthew 6, 7; Luke 6:17-49", diamond: false, dot: false },
+      { day: 276, book: "Mark", chapters: "Mark 3:20-35; Matthew 12:22-50; Luke 8:1-21; 11:14-36", diamond: false, dot: false },
+      { day: 277, book: "Mark", chapters: "Mark 4:1-34; Matthew 13:1-53; Luke 8:4-18", diamond: false, dot: false },
+      { day: 278, book: "Mark", chapters: "Mark 4:35-5:43; Matthew 8:18-34; 9:18-34; Luke 8:22-56", diamond: false, dot: false },
+      { day: 279, book: "Mark", chapters: "Mark 6:1-30; Matthew 9:35-11:1; 13:54-58; 14:1-12; Luke 9:1-10", diamond: false, dot: false },
+      { day: 280, book: "Mark", chapters: "Mark 6:31-56; Matthew 14:13-36; Luke 9:10-17; John 6:1-24", diamond: false, dot: false },
+      { day: 281, book: "John", chapters: "John 6:25-71; Mark 7:1-23; Matthew 15:1-20", diamond: false, dot: false },
+      { day: 282, book: "Mark", chapters: "Mark 7:24-8:10; Matthew 15:21-39", diamond: false, dot: false },
+      { day: 283, book: "Mark", chapters: "Mark 8:11-9:1; Matthew 15:39-16:28; Luke 9:18-27", diamond: false, dot: false },
+      { day: 284, book: "Mark", chapters: "Mark 9:2-50; Matthew 17; Luke 9:28-50", diamond: false, dot: false },
+      { day: 285, book: "Matthew", chapters: "Matthew 18; Mark 9:33-50; Luke 9:46-56; John 7:1-52", diamond: false, dot: false },
+      { day: 286, book: "John", chapters: "John 7:53-9:41", diamond: false, dot: false },
+      { day: 287, book: "John", chapters: "John 10; Luke 10:1-11:13", diamond: false, dot: false },
+      { day: 288, book: "Luke", chapters: "Luke 11:37-13:21", diamond: false, dot: false },
+      { day: 289, book: "Luke", chapters: "Luke 13:22-15:32", diamond: false, dot: false },
+      { day: 290, book: "Luke", chapters: "Luke 16:1-17:10; John 11:1-54", diamond: false, dot: false },
+      { day: 291, book: "Luke", chapters: "Luke 17:11-18:34; Mark 10:1-34; Matthew 19:1-20:28", diamond: false, dot: false },
+      { day: 292, book: "Mark", chapters: "Mark 10:35-52; Matthew 20:20-34; Luke 18:35-19:28; John 11:55-12:11", diamond: false, dot: false },
+      { day: 293, book: "Mark", chapters: "Mark 11:1-26; Matthew 21:1-22; Luke 19:29-48; John 12:12-36", diamond: false, dot: false },
+      { day: 294, book: "Mark", chapters: "Mark 11:27-12:44; Matthew 21:23-23:39; Luke 20:1-21:4", diamond: false, dot: false },
+      { day: 295, book: "Mark", chapters: "Mark 13; Matthew 24; Luke 21:5-38", diamond: false, dot: false },
+      { day: 296, book: "Matthew", chapters: "Matthew 25; John 12:37-50", diamond: false, dot: false },
+      { day: 297, book: "Mark", chapters: "Mark 14:1-31; Matthew 26:1-35; Luke 22:1-38; John 13", diamond: false, dot: false },
+      { day: 298, book: "John", chapters: "John 14-16", diamond: false, dot: false },
+      { day: 299, book: "John", chapters: "John 17; Mark 14:32-72; Matthew 26:36-75; Luke 22:39-71", diamond: false, dot: false },
+      { day: 300, book: "Mark", chapters: "Mark 15:1-41; Matthew 27:1-56; Luke 23:1-49; John 18:1-19:37", diamond: false, dot: false },
+      { day: 301, book: "Mark", chapters: "Mark 15:42-16:20; Matthew 27:57-28:20; Luke 23:50-24:53; John 19:38-21:25", diamond: false, dot: false },
+      { day: 302, book: "Acts", chapters: "Acts 1, 2", diamond: false, dot: false },
+      { day: 303, book: "Acts", chapters: "Acts 3-5", diamond: false, dot: false },
+      { day: 304, book: "Acts", chapters: "Acts 6:1-8:3", diamond: false, dot: false },
+      { day: 305, book: "Acts", chapters: "Acts 8:4-9:43", diamond: false, dot: false },
+      { day: 306, book: "Acts", chapters: "Acts 10-12", diamond: false, dot: false },
+      { day: 307, book: "Acts", chapters: "Acts 13, 14", diamond: false, dot: false },
+      { day: 308, book: "James", chapters: "James 1-5", diamond: false, dot: false },
+      { day: 309, book: "Acts", chapters: "Acts 15:1-35; Galatians 1, 2", diamond: false, dot: false },
+      { day: 310, book: "Galatians", chapters: "Galatians 3-6", diamond: false, dot: false },
+      { day: 311, book: "Acts", chapters: "Acts 15:36-17:34", diamond: false, dot: false },
+      { day: 312, book: "1 Thessalonians", chapters: "1 Thessalonians 1-5; 2 Thessalonians 1-3", diamond: false, dot: false },
+      { day: 313, book: "Acts", chapters: "Acts 18:1-19:20", diamond: false, dot: false },
+      { day: 314, book: "1 Corinthians", chapters: "1 Corinthians 1-4", diamond: false, dot: false },
+      { day: 315, book: "1 Corinthians", chapters: "1 Corinthians 5-8", diamond: false, dot: false },
+      { day: 316, book: "1 Corinthians", chapters: "1 Corinthians 9-11", diamond: false, dot: false },
+      { day: 317, book: "1 Corinthians", chapters: "1 Corinthians 12-14", diamond: false, dot: false },
+      { day: 318, book: "1 Corinthians", chapters: "1 Corinthians 15, 16", diamond: false, dot: false },
+      { day: 319, book: "2 Corinthians", chapters: "2 Corinthians 1-4", diamond: false, dot: false },
+      { day: 320, book: "2 Corinthians", chapters: "2 Corinthians 5-9", diamond: false, dot: false },
+      { day: 321, book: "2 Corinthians", chapters: "2 Corinthians 10-13", diamond: false, dot: false },
+      { day: 322, book: "Acts", chapters: "Acts 19:21-20:6; Romans 1-3", diamond: false, dot: false },
+      { day: 323, book: "Romans", chapters: "Romans 4-7", diamond: false, dot: false },
+      { day: 324, book: "Romans", chapters: "Romans 8-10", diamond: false, dot: false },
+      { day: 325, book: "Romans", chapters: "Romans 11-14", diamond: false, dot: false },
+      { day: 326, book: "Romans", chapters: "Romans 15, 16; Acts 20:7-38", diamond: false, dot: false },
+      { day: 327, book: "Acts", chapters: "Acts 21:1-23:11", diamond: false, dot: false },
+      { day: 328, book: "Acts", chapters: "Acts 23:12-25:22", diamond: false, dot: false },
+      { day: 329, book: "Acts", chapters: "Acts 25:23-28:10", diamond: false, dot: false },
+      { day: 330, book: "Acts", chapters: "Acts 28:11-31; Ephesians 1-3", diamond: false, dot: false },
+      { day: 331, book: "Ephesians", chapters: "Ephesians 4-6", diamond: false, dot: false },
+      { day: 332, book: "Colossians", chapters: "Colossians 1-4; Philemon", diamond: false, dot: false },
+      { day: 333, book: "Philippians", chapters: "Philippians 1-4", diamond: false, dot: false },
+      { day: 334, book: "1 Timothy", chapters: "1 Timothy 1-6", diamond: false, dot: false },
+      { day: 335, book: "Titus", chapters: "Titus 1-3; 2 Timothy 1-4", diamond: false, dot: false },
+      { day: 336, book: "1 Peter", chapters: "1 Peter 1-5", diamond: false, dot: false },
+      { day: 337, book: "Hebrews", chapters: "Hebrews 1-4", diamond: false, dot: false },
+      { day: 338, book: "Hebrews", chapters: "Hebrews 5-7", diamond: false, dot: false },
+      { day: 339, book: "Hebrews", chapters: "Hebrews 8-10", diamond: false, dot: false },
+      { day: 340, book: "Hebrews", chapters: "Hebrews 11-13", diamond: false, dot: false },
+      { day: 341, book: "2 Peter", chapters: "2 Peter 1-3; Jude", diamond: false, dot: false },
+      { day: 342, book: "1 John", chapters: "1 John 1-5", diamond: false, dot: false },
+      { day: 343, book: "2 John", chapters: "2 John; 3 John; Revelation 1-3", diamond: false, dot: false },
+      { day: 344, book: "Revelation", chapters: "Revelation 4-8", diamond: false, dot: false },
+      { day: 345, book: "Revelation", chapters: "Revelation 9-12", diamond: false, dot: false },
+      { day: 346, book: "Revelation", chapters: "Revelation 13-16", diamond: false, dot: false },
+      { day: 347, book: "Revelation", chapters: "Revelation 17-19", diamond: false, dot: false },
+      { day: 348, book: "Revelation", chapters: "Revelation 20-22", diamond: false, dot: false },
+      { day: 349, book: "Psalms", chapters: "Psalms 113; 116; 120; 122; 124; 129", diamond: false, dot: false },
+      { day: 350, book: "Ecclesiastes", chapters: "Ecclesiastes 1-4", diamond: false, dot: false },
+      { day: 351, book: "Ecclesiastes", chapters: "Ecclesiastes 5-8", diamond: false, dot: false },
+      { day: 352, book: "Ecclesiastes", chapters: "Ecclesiastes 9-12", diamond: false, dot: false },
+      { day: 353, book: "1 Kings", chapters: "1 Kings 4:20-28; 7:23-51; 2 Chronicles 4:1-5:1", diamond: false, dot: false },
+      { day: 354, book: "1 Kings", chapters: "1 Kings 8:1-53; 2 Chronicles 5:2-6:42", diamond: false, dot: false },
+      { day: 355, book: "1 Kings", chapters: "1 Kings 8:54-9:23; 2 Chronicles 7:1-8:10", diamond: false, dot: false },
+      { day: 356, book: "1 Kings", chapters: "1 Kings 10:14-29; 2 Chronicles 9:13-28; 1 Kings 11:1-40; Psalms 81", diamond: false, dot: false },
+      { day: 357, book: "2 Chronicles", chapters: "2 Chronicles 1:14-17; 1 Kings 4:21-28; 10:22; 2 Chronicles 9:21; 1 Kings 10:1-13; 2 Chronicles 9:1-12; Psalm 47", diamond: false, dot: false },
+      { day: 358, book: "Psalms", chapters: "Psalms 111; 112; 144", diamond: false, dot: false },
+      { day: 359, book: "2 Kings", chapters: "2 Kings 14:15-22; 15:1-7; 2 Chronicles 25:25-26:23", diamond: false, dot: false },
+      { day: 360, book: "Amos", chapters: "Amos 1-4", diamond: false, dot: false },
+      { day: 361, book: "Amos", chapters: "Amos 5-9", diamond: false, dot: false },
+      { day: 362, book: "Jonah", chapters: "Jonah 1-4; 2 Kings 14:23-29", diamond: false, dot: false },
+      { day: 363, book: "Isaiah", chapters: "Isaiah 1-4", diamond: false, dot: false },
+      { day: 364, book: "Isaiah", chapters: "Isaiah 5; Psalms 10; 19", diamond: false, dot: false },
+      { day: 365, book: "Isaiah", chapters: "Isaiah 6-8; Micah 1-3", diamond: false, dot: false },
+    ];
+
     // Active plan state
     let currentPlan = '1year';
     let activeReadings = READINGS_1YEAR;
@@ -875,6 +1280,9 @@
       } else if (currentPlan === '3year') {
         activeReadings = generatePlan(1095);
         activeBooksInOrder = [...new Set(activeReadings.map(r => r.book))];
+      } else if (currentPlan === 'chrono') {
+        activeReadings = READINGS_CHRONO;
+        activeBooksInOrder = [...new Set(READINGS_CHRONO.map(r => r.book))];
       }
     }
 
@@ -918,7 +1326,7 @@
 
     // Helpers
     function getDateFromDay(day) {
-      const date = new Date(START_DATE);
+      const date = new Date(getStartDate());
       date.setDate(date.getDate() + day - 1);
       return date;
     }
@@ -1005,7 +1413,8 @@
         }
       }
       const now = new Date();
-      const dayOfYear = Math.floor((now - START_DATE) / (1000 * 60 * 60 * 24)) + 1;
+      const startDate = getStartDate();
+      const dayOfYear = Math.floor((now - startDate) / (1000 * 60 * 60 * 24)) + 1;
       // For multi-year plans, shouldBeAt is based on total days
       var planDays = PLAN_TYPES[currentPlan].days;
       const shouldBeAt = Math.min(Math.max(dayOfYear, 0), planDays);
@@ -1230,6 +1639,8 @@
       document.getElementById('planPickerModal').classList.remove('show');
     };
 
+    var pendingPlanType = null;
+
     window.selectPlan = function(type) {
       if (currentPlan && currentPlan !== type) {
         if (!confirm('Switching plans will change your active reading schedule. Your progress for each plan is saved separately. Continue?')) {
@@ -1237,6 +1648,33 @@
         }
       }
       document.getElementById('planPickerModal').classList.remove('show');
+
+      if (type !== 'freestyle') {
+        // Check if this plan already has a start date set
+        var existingDate = localStorage.getItem('bible-reading-start-date-' + type);
+        if (!existingDate && !currentPlan) {
+          // New user, no plan yet — show date picker
+          pendingPlanType = type;
+          var today = new Date();
+          var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+          document.getElementById('startDateInput').value = todayStr;
+          document.getElementById('startDateModal').classList.add('show');
+          return;
+        } else if (!existingDate && currentPlan) {
+          // Switching to a plan that has no start date — show date picker
+          pendingPlanType = type;
+          var today = new Date();
+          var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+          document.getElementById('startDateInput').value = todayStr;
+          document.getElementById('startDateModal').classList.add('show');
+          return;
+        }
+      }
+
+      finalizePlanSelection(type);
+    };
+
+    function finalizePlanSelection(type) {
       currentPlan = type;
       localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: type }));
       // Load progress for this plan (or start fresh)
@@ -1251,6 +1689,31 @@
       if (!isFreestyleType()) {
         setTimeout(scrollToCurrent, 300);
       }
+    }
+
+    window.confirmStartDate = function() {
+      var dateVal = document.getElementById('startDateInput').value;
+      if (!dateVal) {
+        alert('Please select a date.');
+        return;
+      }
+      document.getElementById('startDateModal').classList.remove('show');
+      var type = pendingPlanType;
+      pendingPlanType = null;
+      localStorage.setItem('bible-reading-start-date-' + type, dateVal);
+      finalizePlanSelection(type);
+    };
+
+    window.cancelStartDate = function() {
+      document.getElementById('startDateModal').classList.remove('show');
+      pendingPlanType = null;
+    };
+
+    window.showChangeStartDate = function() {
+      document.getElementById('settingsModal').classList.remove('show');
+      pendingPlanType = currentPlan;
+      document.getElementById('startDateInput').value = getStartDateStr();
+      document.getElementById('startDateModal').classList.add('show');
     };
 
     window.confirmStartOver = function() {
@@ -1267,6 +1730,18 @@
       document.getElementById('settingsVersion').textContent = 'Version ' + APP_VERSION;
       var planLabel = currentPlan ? PLAN_TYPES[currentPlan].label : '';
       document.getElementById('changePlanBtn').textContent = 'Change Reading Plan' + (planLabel ? ' (' + planLabel + ')' : '');
+      // Show/hide start date controls
+      var startDateBtn = document.getElementById('changeStartDateBtn');
+      var startDateDisplay = document.getElementById('currentStartDateDisplay');
+      if (currentPlan && currentPlan !== 'freestyle') {
+        startDateBtn.style.display = '';
+        startDateDisplay.style.display = '';
+        var sd = getStartDate();
+        startDateDisplay.textContent = 'Start date: ' + formatDate(sd) + ' ' + sd.getFullYear();
+      } else {
+        startDateBtn.style.display = 'none';
+        startDateDisplay.style.display = 'none';
+      }
       document.getElementById('settingsModal').classList.add('show');
     };
     window.hideSettings = function() { document.getElementById('settingsModal').classList.remove('show'); };
