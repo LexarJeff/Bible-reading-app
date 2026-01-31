@@ -294,7 +294,7 @@
 
   <script>
     // App version — bump this when publishing a new release
-    const APP_VERSION = "1.5.0";
+    const APP_VERSION = "1.5.1";
 
     // Version comparison (must be defined before OTA loader)
     function compareVersions(a, b) {
@@ -373,7 +373,15 @@
     }
 
     window.downloadUpdate = function() {
-      window.location.reload();
+      // Apply cached OTA update directly instead of reloading bundled file
+      var cached = localStorage.getItem('ota-html');
+      if (cached) {
+        document.open();
+        document.write(cached);
+        document.close();
+      } else {
+        window.location.reload();
+      }
     };
 
     window.dismissUpdate = function() {
