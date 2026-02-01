@@ -82,10 +82,10 @@
     .reading-box .chapters { font-size: 0.45rem; opacity: 0.8; margin-top: 1px; }
 
     .readings-section { padding: 0 1rem 5rem; }
-    .reading-item { display: flex; align-items: center; padding: 0.65rem; margin: 0.35rem 0; background: rgba(45,37,32,0.6); border-radius: 8px; border-left: 3px solid #d4a574; cursor: pointer; transition: all 0.2s; }
+    .reading-item { display: flex; align-items: center; padding: 0.75rem 0.65rem; margin: 0.35rem 0; background: rgba(35,28,24,0.7); border-radius: 8px; border-left: 3px solid #d4a574; cursor: pointer; transition: all 0.2s; }
     .reading-item:active { transform: scale(0.98); }
     .reading-item.current { background: rgba(212,165,116,0.15); border-left-color: #DAA520; box-shadow: 0 0 10px rgba(212,165,116,0.2); }
-    .reading-item.alt { background: rgba(55,47,42,0.6); }
+    .reading-item.alt { background: rgba(60,50,42,0.75); border-left-color: #c49564; }
 
     .checkbox { width: 20px; height: 20px; border: 2px solid rgba(80,200,120,0.5); border-radius: 50%; margin-right: 0.6rem; flex-shrink: 0; }
     .reading-content { flex: 1; min-width: 0; }
@@ -97,13 +97,13 @@
     .current-badge { font-size: 0.5rem; background: linear-gradient(135deg, #d4a574, #DAA520); color: #1a1612; padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
     .reading-title { font-size: 0.9rem; font-weight: 600; color: #e8e0d5; margin-top: 0.1rem; }
 
-    .read-now-btn { background: linear-gradient(135deg, #2d5a27, #50C878); border: none; color: #fff; padding: 0.35rem 0.6rem; border-radius: 5px; font-size: 0.65rem; font-weight: 600; cursor: pointer; margin-left: auto; flex-shrink: 0; }
+    .read-now-btn { background: linear-gradient(135deg, #2d5a27, #50C878); border: none; color: #fff; padding: 0.45rem 0.75rem; border-radius: 5px; font-size: 0.7rem; font-weight: 600; cursor: pointer; margin-left: auto; flex-shrink: 0; }
     .read-now-btn:active { transform: scale(0.95); }
 
-    .reading-segments { display: flex; flex-direction: column; gap: 4px; margin-left: auto; flex-shrink: 0; }
+    .reading-segments { display: flex; flex-direction: column; gap: 6px; margin-left: auto; flex-shrink: 0; }
     .segment-row { display: flex; align-items: center; gap: 8px; }
     .segment-label { font-size: 0.75rem; color: #d4a574; white-space: nowrap; }
-    .segment-btn { padding: 4px 10px; font-size: 0.65rem; background: linear-gradient(135deg, #2d5a27, #50C878); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-weight: 600; }
+    .segment-btn { padding: 6px 14px; font-size: 0.7rem; background: linear-gradient(135deg, #2d5a27, #50C878); color: #fff; border: none; border-radius: 5px; cursor: pointer; white-space: nowrap; font-weight: 600; }
     .segment-btn:active { transform: scale(0.95); }
 
     .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26,22,18,0.95); border-top: 1px solid rgba(212,165,116,0.2); padding: 0.5rem; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); display: flex; justify-content: space-around; backdrop-filter: blur(10px); }
