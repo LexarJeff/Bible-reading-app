@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "2.0.7";
+        var cur = "2.0.8";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -127,6 +127,12 @@
 
     input[type="file"] { display: none; }
 
+    .backup-reminder { background: rgba(212,165,116,0.12); border: 1px solid rgba(212,165,116,0.25); border-radius: 8px; margin: 0.5rem 1rem 0; padding: 0.5rem 0.75rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #d4a574; }
+    .backup-reminder-text { flex: 1; }
+    .backup-reminder-btn { background: rgba(212,165,116,0.2); border: 1px solid rgba(212,165,116,0.4); color: #d4a574; padding: 0.3rem 0.6rem; border-radius: 5px; font-family: 'Crimson Text', serif; font-size: 0.7rem; cursor: pointer; white-space: nowrap; }
+    .backup-reminder-btn:active { background: rgba(212,165,116,0.35); }
+    .backup-reminder-dismiss { background: none; border: none; color: #a89880; font-size: 1rem; cursor: pointer; padding: 0 0.25rem; line-height: 1; }
+
     .plan-subtitle { font-size: 0.7rem; color: #a89880; margin-top: 0.15rem; }
 
     .plan-picker-grid { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -189,6 +195,12 @@
     </div>
   </section>
 
+  <div class="backup-reminder" id="backupReminder" style="display:none;">
+    <span class="backup-reminder-text" id="backupReminderText"></span>
+    <button class="backup-reminder-btn" onclick="exportData()">Export Now</button>
+    <button class="backup-reminder-dismiss" onclick="dismissBackupReminder()">✕</button>
+  </div>
+
   <div class="section-title">Books of the Bible</div>
   <div class="bible-grid" id="bibleGrid"></div>
 
@@ -220,10 +232,8 @@
       <hr class="settings-divider">
       <p>Backup & Restore</p>
       <button class="modal-btn" onclick="exportData()">📤 Export Progress</button>
-      <label class="modal-btn" style="display:block;text-align:center;">
-        📥 Import Backup
-        <input type="file" accept=".json" onchange="importData(event)">
-      </label>
+      <button class="modal-btn" onclick="importBackup()">📥 Import Backup</button>
+      <input type="file" id="importFileInput" accept=".json" onchange="importData(event)" style="display:none;">
       <hr class="settings-divider">
       <button class="modal-btn danger" onclick="confirmStartOver()">Start Over</button>
       <hr class="settings-divider">
@@ -305,7 +315,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "2.0.7";
+    const APP_VERSION = "2.0.8";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -2035,7 +2045,9 @@
 
     window.exportData = async function() {
       const data = JSON.stringify({ plan: currentPlan, order: currentOrder, completed, exportDate: new Date().toISOString() });
-      const filename = 'bible-reading-backup-' + new Date().toISOString().split('T')[0] + '.json';
+      var doneCount = Object.keys(completed).length;
+      var planSlug = currentPlan + (currentOrder === 'chrono' ? '-chrono' : '');
+      const filename = 'bible-backup-' + planSlug + '-' + doneCount + 'done-' + new Date().toISOString().split('T')[0] + '.json';
 
       if (isNative()) {
         try {
@@ -2053,7 +2065,10 @@
             url: result.uri,
             dialogTitle: 'Share your backup'
           });
+          localStorage.setItem('lastBackupDate', new Date().toISOString());
+          hideBackupReminder();
         } catch(e) {
+          if (e.message && e.message.includes('cancel')) return; // user cancelled share sheet
           alert('Export failed: ' + e.message);
         }
       } else {
@@ -2064,6 +2079,42 @@
         a.download = filename;
         a.click();
         URL.revokeObjectURL(blobUrl);
+        localStorage.setItem('lastBackupDate', new Date().toISOString());
+        hideBackupReminder();
+      }
+    }
+
+    function processImportData(jsonString) {
+      try {
+        var data = JSON.parse(jsonString);
+        if (data.completed) {
+          var importPlan = data.plan || '1year';
+          var importOrder = data.order || 'bible';
+          if (importPlan === 'chrono') {
+            importPlan = '1year';
+            importOrder = 'chrono';
+          }
+          if (importPlan !== currentPlan || importOrder !== currentOrder) {
+            var label = PLAN_TYPES[importPlan] ? PLAN_TYPES[importPlan].label : importPlan;
+            if (importOrder === 'chrono') label += ' (Chronological)';
+            if (!confirm('This backup is from the "' + label + '" plan. Switch to it and restore?')) {
+              return;
+            }
+            currentPlan = importPlan;
+            currentOrder = importOrder;
+            localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: importPlan, order: importOrder }));
+            initPlan();
+          }
+          completed = data.completed;
+          saveData();
+          render();
+          alert('Progress restored!');
+          window.hideSettings();
+        } else {
+          alert('Invalid backup file: no progress data found');
+        }
+      } catch(err) {
+        alert('Invalid backup file');
       }
     }
 
@@ -2072,41 +2123,78 @@
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          try {
-            const data = JSON.parse(e.target.result);
-            if (data.completed) {
-              // Detect old format (no plan field) → assume 1year
-              var importPlan = data.plan || '1year';
-              var importOrder = data.order || 'bible';
-              // Migrate old chrono plan imports
-              if (importPlan === 'chrono') {
-                importPlan = '1year';
-                importOrder = 'chrono';
-              }
-              if (importPlan !== currentPlan || importOrder !== currentOrder) {
-                var label = PLAN_TYPES[importPlan] ? PLAN_TYPES[importPlan].label : importPlan;
-                if (importOrder === 'chrono') label += ' (Chronological)';
-                if (!confirm('This backup is from the "' + label + '" plan. Switch to it and restore?')) {
-                  return;
-                }
-                currentPlan = importPlan;
-                currentOrder = importOrder;
-                localStorage.setItem('bible-reading-plan-selection', JSON.stringify({ plan: importPlan, order: importOrder }));
-                initPlan();
-              }
-              completed = data.completed;
-              saveData();
-              render();
-              alert('Progress restored!');
-              window.hideSettings();
-            }
-          } catch(err) {
-            alert('Invalid backup file');
-          }
+          processImportData(e.target.result);
         };
         reader.readAsText(file);
       }
     };
+
+    window.importBackup = async function() {
+      if (isNative() && window.Capacitor.Plugins.FilePicker) {
+        try {
+          var result = await window.Capacitor.Plugins.FilePicker.pickFiles({
+            types: ['application/json'],
+            limit: 1,
+            readData: true
+          });
+          if (result && result.files && result.files.length > 0) {
+            var file = result.files[0];
+            var content;
+            if (file.data) {
+              // data is base64-encoded
+              content = atob(file.data);
+            } else if (file.path) {
+              var FS = window.Capacitor.Plugins.Filesystem;
+              var readResult = await FS.readFile({ path: file.path, encoding: 'utf8' });
+              content = readResult.data;
+            }
+            if (content) {
+              processImportData(content);
+            }
+          }
+        } catch(e) {
+          if (e.message && e.message.includes('cancel')) return;
+          alert('Import failed: ' + e.message);
+        }
+      } else {
+        // Web fallback: trigger hidden file input
+        document.getElementById('importFileInput').click();
+      }
+    };
+
+    // Backup reminder
+    function checkBackupReminder() {
+      var doneCount = Object.keys(completed).length;
+      if (doneCount === 0) return;
+      var lastBackup = localStorage.getItem('lastBackupDate');
+      var showReminder = false;
+      var daysSince = 0;
+      if (!lastBackup) {
+        showReminder = true;
+      } else {
+        var lastDate = new Date(lastBackup);
+        daysSince = Math.floor((new Date() - lastDate) / (1000 * 60 * 60 * 24));
+        if (daysSince > 30) showReminder = true;
+      }
+      if (showReminder) {
+        var el = document.getElementById('backupReminder');
+        var textEl = document.getElementById('backupReminderText');
+        if (!lastBackup) {
+          textEl.textContent = "You haven't backed up your progress yet.";
+        } else {
+          textEl.textContent = "You haven't backed up in " + daysSince + " days.";
+        }
+        el.style.display = '';
+      }
+    }
+
+    window.dismissBackupReminder = function() {
+      document.getElementById('backupReminder').style.display = 'none';
+    };
+
+    function hideBackupReminder() {
+      document.getElementById('backupReminder').style.display = 'none';
+    }
 
     // Dealer's Choice functions
     var dealerSelection = null;
@@ -2248,6 +2336,7 @@
       showPlanPicker();
     } else {
       render();
+      checkBackupReminder();
       if (!isFreestyleType()) {
         setTimeout(scrollToCurrent, 500);
       }

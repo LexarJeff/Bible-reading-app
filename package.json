@@ -1,0 +1,31 @@
+{
+  "name": "bible-reading-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LexarJeff/Bible-reading-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LexarJeff/Bible-reading-app/issues"
+  },
+  "homepage": "https://github.com/LexarJeff/Bible-reading-app#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.0.2",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/cli": "^8.0.2",
+    "@capacitor/core": "^8.0.2",
+    "@capacitor/filesystem": "^8.1.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
+    "@capawesome/capacitor-file-picker": "^8.0.1"
+  }
+}
