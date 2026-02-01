@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "2.0.3";
+        var cur = "2.0.4";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -98,6 +98,12 @@
 
     .read-now-btn { background: linear-gradient(135deg, #2d5a27, #50C878); border: none; color: #fff; padding: 0.35rem 0.6rem; border-radius: 5px; font-size: 0.65rem; font-weight: 600; cursor: pointer; margin-left: auto; flex-shrink: 0; }
     .read-now-btn:active { transform: scale(0.95); }
+
+    .reading-segments { display: flex; flex-direction: column; gap: 4px; margin-left: auto; flex-shrink: 0; }
+    .segment-row { display: flex; align-items: center; gap: 8px; }
+    .segment-label { font-size: 0.75rem; color: #d4a574; white-space: nowrap; }
+    .segment-btn { padding: 4px 10px; font-size: 0.65rem; background: linear-gradient(135deg, #2d5a27, #50C878); color: #fff; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap; font-weight: 600; }
+    .segment-btn:active { transform: scale(0.95); }
 
     .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26,22,18,0.95); border-top: 1px solid rgba(212,165,116,0.2); padding: 0.5rem; padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); display: flex; justify-content: space-around; backdrop-filter: blur(10px); }
     .bottom-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; background: none; border: none; color: #a89880; font-family: 'Crimson Text', serif; font-size: 0.55rem; cursor: pointer; padding: 0.25rem; }
@@ -300,7 +306,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "2.0.3";
+    const APP_VERSION = "2.0.4";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -1475,6 +1481,49 @@
       }
     };
 
+    // Build sorted list of book names from BOOK_NUM, longest first for greedy matching
+    var BOOK_NAMES_SORTED = Object.keys(BOOK_NUM).sort(function(a, b) { return b.length - a.length; });
+
+    function parseChronoSegments(chaptersText) {
+      if (!chaptersText) return [];
+      var parts = chaptersText.split('; ');
+      var segments = [];
+      var lastBook = null;
+
+      for (var i = 0; i < parts.length; i++) {
+        var part = parts[i].trim();
+        if (!part) continue;
+
+        // Try to match a known book name at the start
+        var foundBook = null;
+        for (var j = 0; j < BOOK_NAMES_SORTED.length; j++) {
+          var name = BOOK_NAMES_SORTED[j];
+          if (part.indexOf(name) === 0 && (part.length === name.length || part[name.length] === ' ')) {
+            foundBook = name;
+            break;
+          }
+        }
+
+        if (foundBook) {
+          // Extract first chapter number from the rest after the book name
+          var rest = part.substring(foundBook.length).trim();
+          var chMatch = rest.match(/(\d+)/);
+          var ch = chMatch ? parseInt(chMatch[1], 10) : 1;
+          segments.push({ book: foundBook, label: part, chapter: ch });
+          lastBook = foundBook;
+        } else if (lastBook) {
+          // Bare reference like "25:12-18" — belongs to the previous book
+          // Merge into the last segment with the same book
+          var lastSeg = segments[segments.length - 1];
+          if (lastSeg && lastSeg.book === lastBook) {
+            lastSeg.label += '; ' + part;
+          }
+        }
+      }
+
+      return segments;
+    }
+
     function getBookStats(book) {
       if (isFreestyleType()) {
         var bookInfo = BIBLE_BOOKS.find(function(b) { return b[0] === book; });
@@ -1685,9 +1734,21 @@
         document.getElementById('expandedReadings').innerHTML = readings.map(function(r) {
           var isDone = completed[r.day];
           var label = chronoFS ? 'Day ' + r.day : formatDate(getDateFromDay(r.day));
+          // Find the segment matching this expanded book to get correct chapter for open link
+          var segs = parseChronoSegments(r.chapters);
+          var matchSeg = null;
+          for (var si = 0; si < segs.length; si++) {
+            if (segs[si].book === bookName) { matchSeg = segs[si]; break; }
+          }
+          var openLink = '';
+          if (matchSeg) {
+            var safeB = matchSeg.book.replace(/'/g, "\\'");
+            openLink = '<span class=\"ch-open\" onclick=\"event.stopPropagation(); openFreestyleChapter(\'' + safeB + '\', ' + matchSeg.chapter + ')\" style=\"font-size:0.4rem;color:#50C878;cursor:pointer;\">open</span>';
+          }
           return '<div class=\"reading-box ' + (isDone ? 'complete' : '') + '\" onclick=\"toggleComplete(' + r.day + ')\" style=\"width:auto;min-width:48px;max-width:140px;height:auto;min-height:48px;\">' +
             '<span class=\"date\">' + label + '</span>' +
             '<span class=\"chapters\" style=\"font-size:0.4rem;word-break:break-word;\">' + (r.chapters || 'All') + '</span>' +
+            openLink +
           '</div>';
         }).join('');
       } else {
@@ -1727,18 +1788,61 @@
 
         if (chronoFS) {
           // Chrono freestyle: no dates, no behind, no indicators
+          var segsFS = (currentOrder === 'chrono') ? parseChronoSegments(r.chapters) : [];
+          var uniqueBooksFS = [];
+          for (var si = 0; si < segsFS.length; si++) {
+            if (uniqueBooksFS.indexOf(segsFS[si].book) === -1) uniqueBooksFS.push(segsFS[si].book);
+          }
+          var multiFS = uniqueBooksFS.length > 1;
+          var btnHtmlFS = '';
+          if (multiFS) {
+            btnHtmlFS = '<div class="reading-segments">';
+            for (var si2 = 0; si2 < segsFS.length; si2++) {
+              var seg = segsFS[si2];
+              var safeB = seg.book.replace(/'/g, "\\'");
+              btnHtmlFS += '<div class="segment-row">' +
+                '<span class="segment-label">' + seg.label + '</span>' +
+                '<button class="segment-btn" onclick="event.stopPropagation(); openFreestyleChapter(\'' + safeB + '\', ' + seg.chapter + ')">Read</button>' +
+              '</div>';
+            }
+            btnHtmlFS += '</div>';
+          } else {
+            btnHtmlFS = '<button class="read-now-btn" onclick="openReading(' + readingIdx + ')">Read Now</button>';
+          }
           return '<div class="reading-item ' + (isCurrent ? 'current' : '') + '" id="reading-' + r.day + '">' +
             '<div class="checkbox" onclick="toggleComplete(' + r.day + ')"></div>' +
             '<div class="reading-content" onclick="toggleComplete(' + r.day + ')">' +
               '<div class="reading-header">' +
                 (isCurrent ? '<span class="current-badge">Next</span>' : '') +
               '</div>' +
-              '<div class="reading-title">' + r.book + ' ' + r.chapters + '</div>' +
+              '<div class="reading-title">' + (multiFS ? 'Day ' + r.day : r.book + ' ' + r.chapters) + '</div>' +
             '</div>' +
-            '<button class="read-now-btn" onclick="openReading(' + readingIdx + ')">Read Now</button>' +
+            btnHtmlFS +
           '</div>';
         }
 
+        // Chrono scheduled or bible-order scheduled
+        var segsSch = (currentOrder === 'chrono') ? parseChronoSegments(r.chapters) : [];
+        var uniqueBooksSch = [];
+        for (var si3 = 0; si3 < segsSch.length; si3++) {
+          if (uniqueBooksSch.indexOf(segsSch[si3].book) === -1) uniqueBooksSch.push(segsSch[si3].book);
+        }
+        var multiSch = uniqueBooksSch.length > 1;
+        var btnHtmlSch = '';
+        if (multiSch) {
+          btnHtmlSch = '<div class="reading-segments">';
+          for (var si4 = 0; si4 < segsSch.length; si4++) {
+            var segS = segsSch[si4];
+            var safeBs = segS.book.replace(/'/g, "\\'");
+            btnHtmlSch += '<div class="segment-row">' +
+              '<span class="segment-label">' + segS.label + '</span>' +
+              '<button class="segment-btn" onclick="event.stopPropagation(); openFreestyleChapter(\'' + safeBs + '\', ' + segS.chapter + ')">Read</button>' +
+            '</div>';
+          }
+          btnHtmlSch += '</div>';
+        } else {
+          btnHtmlSch = '<button class="read-now-btn" onclick="openReading(' + readingIdx + ')">Read Now</button>';
+        }
         const date = getDateFromDay(r.day);
         return '<div class="reading-item ' + (isCurrent ? 'current' : '') + '" id="reading-' + r.day + '">' +
           '<div class="checkbox" onclick="toggleComplete(' + r.day + ')"></div>' +
@@ -1749,9 +1853,9 @@
               (r.dot ? '<span class="indicator dot">●</span>' : '') +
               (isCurrent ? '<span class="current-badge">Next</span>' : '') +
             '</div>' +
-            '<div class="reading-title">' + r.book + ' ' + r.chapters + '</div>' +
+            '<div class="reading-title">' + (multiSch ? formatDate(date) : r.book + ' ' + r.chapters) + '</div>' +
           '</div>' +
-          '<button class="read-now-btn" onclick="openReading(' + readingIdx + ')">Read Now</button>' +
+          btnHtmlSch +
         '</div>';
       }).join('');
 
