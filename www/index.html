@@ -12,7 +12,7 @@
         var c = localStorage.getItem('ota-html');
         var v = localStorage.getItem('ota-version');
         if (!c || !v) return;
-        var cur = "2.0.8";
+        var cur = "2.0.9";
         var pa = v.split('.').map(Number), pb = cur.split('.').map(Number);
         for (var i = 0; i < 3; i++) {
           if ((pa[i]||0) > (pb[i]||0)) {
@@ -30,7 +30,9 @@
   <meta name="theme-color" content="#1a1612">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
   <title>Bible Reading 2026</title>
-  <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Bible Reading 2026&quot;,&quot;short_name&quot;:&quot;Bible 2026&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%231a1612&quot;,&quot;theme_color&quot;:&quot;%231a1612&quot;}">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <meta name="apple-mobile-web-app-title" content="Bible 2026">
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -315,7 +317,7 @@
   <script>
     // App version — bump this when publishing a new release
     // IMPORTANT: Also update the "cur" variable in the OTA apply block in <head>
-    const APP_VERSION = "2.0.8";
+    const APP_VERSION = "2.0.9";
 
     // Version comparison
     function compareVersions(a, b) {
@@ -2073,14 +2075,37 @@
         }
       } else {
         var blob = new Blob([data], { type: 'application/json' });
-        var blobUrl = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(blobUrl);
-        localStorage.setItem('lastBackupDate', new Date().toISOString());
-        hideBackupReminder();
+        // Use Web Share API with file support (works on iOS Safari)
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] })) {
+          try {
+            await navigator.share({
+              title: 'Bible Reading Backup',
+              files: [new File([blob], filename, { type: 'application/json' })]
+            });
+            localStorage.setItem('lastBackupDate', new Date().toISOString());
+            hideBackupReminder();
+          } catch(e) {
+            if (e.name === 'AbortError') return; // user cancelled
+            // Fall back to download
+            var blobUrl = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(blobUrl);
+            localStorage.setItem('lastBackupDate', new Date().toISOString());
+            hideBackupReminder();
+          }
+        } else {
+          var blobUrl = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(blobUrl);
+          localStorage.setItem('lastBackupDate', new Date().toISOString());
+          hideBackupReminder();
+        }
       }
     }
 
@@ -2340,6 +2365,12 @@
       if (!isFreestyleType()) {
         setTimeout(scrollToCurrent, 500);
       }
+    }
+  </script>
+  <script>
+    // Service worker registration (PWA offline support)
+    if ('serviceWorker' in navigator && !isNative()) {
+      navigator.serviceWorker.register('sw.js').catch(function() {});
     }
   </script>
 </body>
