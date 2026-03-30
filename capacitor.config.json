@@ -1,0 +1,14 @@
+{
+  "appId": "com.biblereading.app2026",
+  "appName": "Bible Reading 2026",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#1a1612"
+  },
+  "plugins": {
+    "StatusBar": {
+      "backgroundColor": "#1a1612",
+      "style": "DARK"
+    }
+  }
+}
